@@ -1,0 +1,56 @@
+title Internal Sequence: Threshold Decryption Component (1/2) — Ceremony Setup: Proposal, Approvals &amp; Share Collection
+
+participantgroup Threshold Decryption Component (Internal)
+participant "Decryption API Controller" as CTRL #lightblue
+participant "Ceremony Service" as CEREMONY #lightblue
+participant "Approval Store" as APPROVAL #lightblue
+participant "Trustee Share Store" as SHARE #lightblue
+end
+
+participantgroup External Participants
+participant "Transparency / Audit API" as TRANSP #lightblue
+end
+
+[->CTRL : propose ceremony (authenticated: operator access key)
+activate CTRL #lightblue
+CTRL -> TRANSP : read canonical election state
+activate TRANSP #lightblue
+TRANSP --> CTRL : canonical state (IsFinalized)
+deactivateafter TRANSP
+alt canonical state not confirmed Closed/Finalized, or endpoint unavailable/malformed
+  CTRL -> CEREMONY : record closure-check-rejected event
+  activate CEREMONY #lightblue
+  CEREMONY --> CTRL : ceremony (Failed)
+  deactivateafter CEREMONY
+  [<--CTRL : ceremony proposal rejected
+else canonical state confirmed Closed/Finalized
+  CTRL -> CEREMONY : create ceremony state
+  activate CEREMONY #lightblue
+  CEREMONY --> CTRL : proposed
+  deactivateafter CEREMONY
+  [<--CTRL : ceremony proposed
+end
+deactivateafter CTRL
+
+[->CTRL : approve ceremony
+activate CTRL #lightblue
+CTRL -> APPROVAL : record approval
+activate APPROVAL #lightblue
+APPROVAL --> CTRL : approval count
+deactivateafter APPROVAL
+[<--CTRL : updated state
+deactivateafter CTRL
+
+[->CTRL : submit trustee share
+activate CTRL #lightblue
+CTRL -> SHARE : record share
+activate SHARE #lightblue
+SHARE --> CTRL : share count
+deactivateafter SHARE
+[<--CTRL : updated state
+deactivateafter CTRL
+
+[->CTRL : query ceremony status
+activate CTRL #lightblue
+[<--CTRL : current ceremony state
+deactivateafter CTRL

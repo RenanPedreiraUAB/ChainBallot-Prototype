@@ -1,0 +1,55 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] - ChainBallot Voter</title>
+    <script type="importmap"></script>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/VoterComponent.Web.styles.css" asp-append-version="true" />
+</head>
+<body>
+    <header class="topbar">
+        <div class="container topbar-inner">
+            <div>
+                <a class="brand" asp-page="/Index">ChainBallot Voter</a>
+                <div class="brand-subtitle">Server-rendered ballot entry and authorization</div>
+            </div>
+
+            <nav class="topbar-nav">
+                <a asp-page="/Index">Home</a>
+                <a asp-page="/Dashboard">Dashboard</a>
+                @if (User.Identity?.IsAuthenticated == true)
+                {
+                    <form method="post" asp-page="/Logout" class="logout-form">
+                        <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+                    </form>
+                }
+                else
+                {
+                    <a class="btn btn-outline-light btn-sm" asp-page="/Login">Login</a>
+                }
+            </nav>
+        </div>
+    </header>
+
+    <main class="app-shell">
+        <div class="container">
+            @RenderBody()
+        </div>
+    </main>
+
+    <footer class="app-footer">
+        <div class="container">
+            &copy; 2026 - ChainBallot Voter Prototype
+        </div>
+    </footer>
+
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

@@ -1,0 +1,61 @@
+title Internal Sequence: Result Portal
+
+participantgroup Result Portal (Internal)
+participant "Result Pages" as UI #lightblue
+participant "Visibility Policy Service" as POLICY #lightblue
+participant "Verified Result Client" as CLIENT #lightblue
+end
+
+participantgroup External Participants
+participant "Transparency API Adapter" as TRANSP #lightblue
+end
+
+[->UI : request results page
+activate UI #lightblue
+UI -> POLICY : evaluate visibility policy
+activate POLICY #lightblue
+POLICY --> UI : access decision
+deactivateafter POLICY
+alt access denied
+  [<--UI : show access denied
+else access allowed
+  UI -> CLIENT : request verified snapshot
+  activate CLIENT #lightblue
+  CLIENT -> TRANSP : fetch verified results
+  activate TRANSP #lightblue
+  TRANSP --> CLIENT : verified snapshot
+  deactivateafter TRANSP
+  CLIENT --> UI : result data or read-status error (NotFound/Unauthorized/Unavailable)
+  deactivateafter CLIENT
+  alt read succeeded
+    [<--UI : display verified results
+  else read failed
+    [<--UI : display read-error message
+  end
+end
+deactivateafter UI
+
+[->UI : request VID verification
+activate UI #lightblue
+UI -> POLICY : evaluate visibility policy
+activate POLICY #lightblue
+POLICY --> UI : verification access decision
+deactivateafter POLICY
+alt verify access denied
+  [<--UI : show access denied
+else verify access allowed
+  UI -> CLIENT : request VID verification
+  activate CLIENT #lightblue
+  CLIENT -> TRANSP : fetch VID verification
+  activate TRANSP #lightblue
+  TRANSP --> CLIENT : VidVerificationResponse
+  deactivateafter TRANSP
+  CLIENT --> UI : verification data or read-status error (NotFound/Unauthorized/Unavailable)
+  deactivateafter CLIENT
+  alt read succeeded
+    [<--UI : display verification evidence
+  else read failed
+    [<--UI : display read-error message
+  end
+end
+deactivateafter UI

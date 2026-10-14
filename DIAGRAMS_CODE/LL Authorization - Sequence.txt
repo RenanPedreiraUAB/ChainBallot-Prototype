@@ -1,0 +1,93 @@
+title Internal Sequence: Election Authorization Component
+
+participantgroup Authorization Component (Internal)
+participant "Authorization Controller" as CTRL #lightblue
+participant "VID Service" as VID #lightblue
+participant "Grant Service" as GRANT #lightblue
+participant "Eligibility Service" as ELIG #lightblue
+participant "VID Repository" as VIDREPO #lightblue
+participant "Authorization Repository" as AUTHREPO #lightblue
+participant "Audit Event Writer" as AUDIT #lightblue
+end
+
+participantgroup External Participants
+participant "Signed Assertion Validation Adapter" as ASSERT #lightblue
+end
+
+[->CTRL : resolve identity / request grant
+activate CTRL #lightblue
+CTRL -> ASSERT : validate signed assertion
+activate ASSERT #lightblue
+ASSERT --> CTRL : assertion accepted
+deactivateafter ASSERT
+CTRL -> VID : resolve VID for subject
+activate VID #lightblue
+VID -> VIDREPO : load or create VID mapping
+activate VIDREPO #lightblue
+VIDREPO --> VID : mapping
+deactivateafter VIDREPO
+VID --> CTRL : VID
+deactivateafter VID
+CTRL -> ELIG : check eligibility for election
+activate ELIG #lightblue
+ELIG -> AUTHREPO : read election state
+activate AUTHREPO #lightblue
+AUTHREPO --> ELIG : state
+deactivateafter AUTHREPO
+ELIG --> CTRL : eligible / not eligible
+deactivateafter ELIG
+alt eligible
+  CTRL -> GRANT : issue grant
+  activate GRANT #lightblue
+  GRANT -> AUTHREPO : persist grant
+  activate AUTHREPO #lightblue
+  AUTHREPO --> GRANT : stored
+  deactivateafter AUTHREPO
+  GRANT -> AUDIT : record event
+  activate AUDIT #lightblue
+  AUDIT --> GRANT : event recorded
+  deactivateafter AUDIT
+  GRANT --> CTRL : grant
+  deactivateafter GRANT
+  [<--CTRL : return VID and grant
+else not eligible
+  [<--CTRL : reject request
+end
+deactivateafter CTRL
+
+[->CTRL : consume one-time grant (grantId + submissionNonce)
+activate CTRL #lightblue
+CTRL -> ASSERT : validate signed assertion
+activate ASSERT #lightblue
+ASSERT --> CTRL : assertion accepted
+deactivateafter ASSERT
+CTRL -> VID : resolve VID for subject
+activate VID #lightblue
+VID -> VIDREPO : load VID mapping
+activate VIDREPO #lightblue
+VIDREPO --> VID : mapping
+deactivateafter VIDREPO
+VID --> CTRL : VID
+deactivateafter VID
+CTRL -> GRANT : consume grant (grantId + submissionNonce)
+activate GRANT #lightblue
+alt grant already consumed with matching nonce (idempotent replay)
+  GRANT --> CTRL : return prior consume success
+else grant not yet consumed
+  alt grant expired, election/VID mismatch, or already voted
+    GRANT --> CTRL : reject (invalid grant)
+  else grant valid and unconsumed
+    GRANT -> AUTHREPO : atomically update only if unconsumed and unexpired
+    activate AUTHREPO #lightblue
+    AUTHREPO --> GRANT : consumed or rejected
+    deactivateafter AUTHREPO
+    GRANT -> AUDIT : record consume outcome
+    activate AUDIT #lightblue
+    AUDIT --> GRANT : event recorded
+    deactivateafter AUDIT
+    GRANT --> CTRL : consume response
+  end
+end
+deactivateafter GRANT
+[<--CTRL : return consume status
+deactivateafter CTRL

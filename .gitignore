@@ -1,0 +1,21 @@
+# Build artifacts
+**/bin/
+**/obj/
+
+# User-specific files
+**/*.user
+**/*.suo
+
+# Local databases and logs
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.log
+
+# Retained validation evidence (exception to the *.log rule above)
+!artifacts/validation/*.log
+
+# Test and coverage artifacts
+**/TestResults/
+**/coverage/
+**/coverage.cobertura.xml

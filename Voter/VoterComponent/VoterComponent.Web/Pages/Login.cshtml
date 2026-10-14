@@ -1,0 +1,30 @@
+@page
+@model VoterComponent.Web.Pages.LoginModel
+@{
+    ViewData["Title"] = "Authenticate";
+}
+
+<section class="auth-shell">
+    <div class="auth-panel">
+        <div class="eyebrow">Inbound / Voter Component</div>
+        <h1>Authenticate to load your ballot workspace</h1>
+        <p class="lead">Sign in through CynetAuth, then the component will resolve VID state and eligible election data before you continue.</p>
+
+        @if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+        {
+            <div class="alert alert-danger">@Model.ErrorMessage</div>
+        }
+
+        <form method="post" class="stacked-form">
+            <input type="hidden" asp-for="ReturnElectionId" />
+
+            <label asp-for="Input.Username" class="form-label">Username</label>
+            <input asp-for="Input.Username" class="form-control form-control-lg" autocomplete="username" />
+
+            <label asp-for="Input.Password" class="form-label mt-3">Password</label>
+            <input asp-for="Input.Password" class="form-control form-control-lg" type="password" autocomplete="current-password" />
+
+            <button type="submit" class="btn btn-primary btn-lg mt-4">Sign in</button>
+        </form>
+    </div>
+</section>

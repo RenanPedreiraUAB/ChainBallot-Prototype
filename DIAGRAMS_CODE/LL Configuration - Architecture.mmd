@@ -1,0 +1,34 @@
+---
+config:
+  layout: elk
+title: 
+---
+flowchart TD
+    classDef svc fill:#CCEBC5,stroke:#777777,color:#222222
+    classDef db fill:#E4F4E4,stroke:#777777,color:#222222
+
+    subgraph COMP["Configuration Component"]
+        UI["Administrative Interface"]
+        CTRL["Election Draft<br/>Coordination Service"]
+        VALID["Validation Service"]
+        META["Metadata Builder"]
+        MANIFEST["Deployment Manifest Service"]
+        SCALE["Scale Recommendation Service"]
+        LEDGER["Ledger Init Client"]
+        REPO["Metadata Repository Client"]
+        DRAFT[("Draft Store")]
+    end
+
+    UI --> CTRL
+    CTRL --> VALID
+    CTRL --> META
+    CTRL --> MANIFEST
+    CTRL --> SCALE
+    CTRL --> LEDGER
+    CTRL --> REPO
+    CTRL --> DRAFT
+
+    linkStyle default stroke:#4C9A6E,stroke-width:2.5px
+
+    class UI,CTRL,VALID,META,MANIFEST,SCALE,LEDGER,REPO svc
+    class DRAFT db

@@ -1,0 +1,6 @@
+@TransparencyAudit.Api_HostAddress = http://localhost:5264
+
+GET {{TransparencyAudit.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,32 @@
+title Internal Sequence: Watcher Component (2/2) — Report Signing, Persistence &amp; Delivery
+
+participantgroup Watcher Component (Internal)
+participant "Watcher API Controller" as CTRL #lightblue
+participant "Audit Runner" as RUNNER #lightblue
+participant "Signature Service" as SIGN #lightblue
+participant "Report Store" as STORE #lightblue
+end
+
+note over CTRL,STORE: Continues from Part 1 with completed audit findings.
+activate CTRL #lightblue
+activate RUNNER #lightblue
+RUNNER -> SIGN : sign report
+activate SIGN #lightblue
+SIGN --> RUNNER : signed report
+deactivateafter SIGN
+RUNNER -> STORE : persist report
+activate STORE #lightblue
+STORE --> RUNNER : report persisted
+deactivateafter STORE
+alt an upstream read or check threw an exception
+  RUNNER --> CTRL : audit complete (status: Error)
+else all checks completed
+  alt consistency checks failed
+    RUNNER --> CTRL : audit complete (status: Inconsistent)
+  else consistency checks passed
+    RUNNER --> CTRL : audit complete (status: Consistent)
+  end
+end
+deactivateafter RUNNER
+[<--CTRL : return report
+deactivateafter CTRL

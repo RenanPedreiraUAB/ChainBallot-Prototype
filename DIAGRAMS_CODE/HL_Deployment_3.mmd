@@ -1,0 +1,73 @@
+---
+title: Figure 5.2 (3/3) - Autoscaling Control Plane
+config:
+  layout: elk
+  flowchart:
+    rankSpacing: 80
+    nodeSpacing: 50
+---
+flowchart TD
+    %% Physical/deployment view:
+    %% - Stateless services are autoscaling-ready.
+    %% - Worker pods scale from both CPU utilization and Kafka lag.
+    %% Split 3/3: autoscaling strategy. UI_TIER/API_TIER below are the SAME
+    %% pods shown in HL_Deployment_1.mmd; WORKER_TIER is the same pool shown
+    %% in HL_Deployment_2.mmd — all repeated here (identical replicas/colors)
+    %% as the targets each scaler controls. Subgraphs use a vertical (TB)
+    %% internal layout to keep the render narrow/tall.
+
+    classDef voter fill:#80B1D3,stroke:#777777,color:#222222
+    classDef auth fill:#FB8072,stroke:#777777,color:#222222
+    classDef process fill:#BC80BD,stroke:#777777,color:#222222
+    classDef transparency fill:#8DD3C7,stroke:#777777,color:#222222
+    classDef resultportal fill:#B3DE69,stroke:#777777,color:#222222
+    classDef watcher fill:#FFFFB3,stroke:#777777,color:#222222
+    classDef decrypt fill:#FDB462,stroke:#777777,color:#222222
+    classDef scale fill:#F0F0F0,stroke:#555555,color:#222222,stroke-dasharray: 2 2
+
+    subgraph UI_TIER["UI-Facing Application Pods <i>(see Diagram 1)</i><br/><i>multiple replicas behind load balancing</i>"]
+        direction TB
+        VOTER["Voter Component<br/><i>2-6 replicas</i>"]
+        TRANSP["Transparency &amp; Audit Component<br/><i>2-6 replicas</i>"]
+        RESULT["Result Portal<br/><i>2-4 replicas</i>"]
+        WATCHER["Watcher Component<br/><i>2-4 replicas</i>"]
+    end
+
+    subgraph API_TIER["Internal API / Service Pods <i>(see Diagram 1)</i><br/><i>multiple replicas; no direct UI</i>"]
+        direction TB
+        AUTH["Election Authorization Component<br/><i>2-6 replicas</i>"]
+        DECRYPT["Threshold Decryption Orchestration Component<br/><i>2-4 replicas</i>"]
+    end
+
+    subgraph WORKER_TIER["Election Processing Worker Pool <i>(see Diagram 2)</i><br/><i>replicated pods scheduled across nodes</i>"]
+        direction TB
+        PROC1["Processing Pod 1"]
+        PROC2["Processing Pod 2"]
+        PROC3["Processing Pod 3"]
+        PROCN["Processing Pod N<br/><i>autoscaling limit</i>"]
+    end
+
+    subgraph SCALE_TIER["Autoscaling Control Plane"]
+        direction TB
+        HPA_UI["HPA for UI Pods<br/><i>CPU target 60%</i>"]
+        HPA_API["HPA for Internal Services<br/><i>CPU target 60%</i>"]
+        HPA_PROC["HPA for Processing Pods<br/><i>CPU target 60%<br/>min 1 / max 10</i>"]
+        KEDA_PROC["KEDA ScaledObject<br/><i>Kafka lag &gt;100 messages<br/>min 1 / max 20</i>"]
+    end
+
+    HPA_UI -.->|scales| UI_TIER
+    HPA_API -.->|scales| API_TIER
+    HPA_PROC -.->|scales| WORKER_TIER
+    KEDA_PROC -.->|scales on Kafka lag| WORKER_TIER
+
+    %% linkStyle indices = 0-based edge declaration order above (4 edges).
+    linkStyle 0,1,2,3 stroke:#555555,stroke-width:2px,stroke-dasharray:3 3
+
+    class VOTER voter
+    class TRANSP transparency
+    class RESULT resultportal
+    class WATCHER watcher
+    class AUTH auth
+    class DECRYPT decrypt
+    class PROC1,PROC2,PROC3,PROCN process
+    class HPA_UI,HPA_API,HPA_PROC,KEDA_PROC scale

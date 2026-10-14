@@ -1,0 +1,71 @@
+title UIS-01 — Voter Authentication and Voting Authorization
+
+
+actor "Voter" as VOTER #lightblue
+
+participant "Voter Component" as VC #lightblue
+participant "Trusted Third Party (TTP)\nAuthentication Service" as TTP #lightblue
+participant "Election Authorization Component" as AUTH #lightblue
+database "VID Repository" as VIDDB #lightblue
+database "Voting Authorization Repository" as AUTHDB #lightblue
+database "Election Metadata Repository" as META #lightblue
+
+activate VOTER #lightblue
+activate VC #lightblue
+
+VOTER -> VC : Submit credentials
+VC -> TTP : Request authentication
+
+activate TTP #lightblue
+
+alt Authentication failed
+
+TTP --> VC : Unauthorized
+
+
+VC --> VOTER : Display authorization failure
+
+else Authentication successful
+
+TTP --> VC : Signed identity assertion
+deactivateafter TTP
+
+VC -> AUTH : Request voter profile\nwith signed identity assertion
+
+activate AUTH #lightblue
+
+AUTH -> VIDDB : Retrieve existing VID or create new VID
+activate VIDDB #lightblue
+VIDDB --> AUTH : Confirm identity mapped VID
+deactivateafter VIDDB
+
+AUTH --> VC : Return VID profile
+
+VC -> AUTH : Request election authorization state
+
+AUTH -> AUTHDB : Verify election participation eligibility
+activate AUTHDB #lightblue
+AUTHDB --> AUTH : Confirm election participation status
+deactivateafter AUTHDB
+
+AUTH --> VC : Return VID and voting eligibility
+deactivateafter AUTH
+
+alt Participant not eligible to cast vote
+
+VC --> VOTER : Display authorization failure
+
+else Participant eligible to cast vote
+
+VC -> META : Request canonical election metadata
+activate META #lightblue
+META --> VC : Return election metadata
+deactivateafter META
+
+VC --> VOTER : Display election information
+
+VC --> VOTER : Grant access to ballot interaction
+deactivateafter VC
+end
+end
+deactivateafter VOTER

@@ -1,0 +1,30 @@
+title Internal Sequence: TTP Authentication Service
+
+participantgroup TTP Authentication Service (Internal)
+participant "Authentication Controller" as CTRL #lightblue
+participant "Credential Verification Service" as VERIFY #lightblue
+participant "Token Issuer" as ISSUER #lightblue
+participant "Subject Store" as STORE #lightblue
+end
+
+[->CTRL : submit credentials
+activate CTRL #lightblue
+CTRL -> VERIFY : validate credentials
+activate VERIFY #lightblue
+VERIFY -> STORE : lookup subject record
+activate STORE #lightblue
+STORE --> VERIFY : subject record or not found
+deactivateafter STORE
+alt subject not found or password invalid
+  VERIFY --> CTRL : credential rejected
+  [<--CTRL : return rejection (unauthorized)
+else credential accepted
+  VERIFY --> CTRL : credential accepted
+  CTRL -> ISSUER : issue signed assertion
+  activate ISSUER #lightblue
+  ISSUER --> CTRL : signed token
+  deactivateafter ISSUER
+  [<--CTRL : return assertion
+end
+deactivateafter VERIFY
+deactivateafter CTRL

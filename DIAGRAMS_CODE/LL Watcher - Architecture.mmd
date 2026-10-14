@@ -1,0 +1,30 @@
+---
+config:
+  layout: elk
+title: 
+---
+flowchart TD
+    classDef svc fill:#FFFFB3,stroke:#777777,color:#222222
+    classDef db fill:#E4F4E4,stroke:#777777,color:#222222
+
+    subgraph COMP["Watcher Component"]
+        CTRL["Watcher API Controller"]
+        RUNNER["Audit Runner"]
+        CHECK["Consistency Check Service"]
+        TRANSP["Transparency API Adapter"]
+        DIGEST["Authoritative Digest<br/>Source Adapter"]
+        SIGN["Signature Service"]
+        STORE[("Report Store")]
+    end
+
+    CTRL --> RUNNER
+    RUNNER --> CHECK
+    CHECK --> TRANSP
+    CHECK --> DIGEST
+    RUNNER --> STORE
+    RUNNER --> SIGN
+
+    linkStyle default stroke:#B8B82E,stroke-width:2.5px
+
+    class CTRL,RUNNER,CHECK,TRANSP,DIGEST,SIGN svc
+    class STORE db

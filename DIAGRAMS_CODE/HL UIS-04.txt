@@ -1,0 +1,77 @@
+title UIS-04 — Election Configuration and Initialization
+
+
+actor "Election Administrator" as ADMIN #lightblue
+
+participant "Configuration Component" as CONFIG #lightblue
+participant "Admin File System" as FS #lightblue
+participant "Solana Blockchain Network" as BC #lightblue
+
+database "Election Metadata Repository" as META #lightblue
+
+activate ADMIN #lightblue
+
+ADMIN -> CONFIG : Configure election duration period
+
+activate CONFIG #lightblue
+
+ADMIN -> CONFIG : Configure election candidates
+ADMIN -> CONFIG : Configure smart contract parameters
+
+CONFIG -> CONFIG : Validate election rules and parameters
+activate CONFIG #lightblue
+deactivateafter CONFIG
+
+alt Validation failed
+
+CONFIG --> ADMIN : Display validation errors\n(election remains in Draft state)
+
+else Validation succeeded
+
+CONFIG -> CONFIG : Generate canonical election metadata
+activate CONFIG #lightblue
+deactivateafter CONFIG
+
+CONFIG -> CONFIG : Compute metadata hash (SHA-256)
+activate CONFIG #lightblue
+deactivateafter CONFIG
+
+CONFIG -> FS : Store local election metadata artifact
+
+activate FS #lightblue
+FS --> CONFIG : Artifact stored
+deactivateafter FS
+
+CONFIG -> CONFIG : Prepare reusable contract\ninitialization parameters
+activate CONFIG #lightblue
+deactivateafter CONFIG
+
+CONFIG -> FS : Store deployment manifest\n(election, metadata, blockchain, policy, handoff sections)
+
+activate FS #lightblue
+FS --> CONFIG : Manifest stored
+deactivateafter FS
+
+CONFIG -> CONFIG : Analyze election scale requirements\n(expected voters, duration, peak participation)
+activate CONFIG #lightblue
+deactivateafter CONFIG
+
+CONFIG --> ADMIN : Display infrastructure deployment recommendations
+
+CONFIG -> BC : Initialize reusable election program\nfor this election instance
+
+activate BC #lightblue
+BC --> CONFIG : Confirm initialization and return\ncanonical settlement reference
+deactivateafter BC
+
+CONFIG -> META : Publish finalized metadata and contract reference
+activate META #lightblue
+META -->CONFIG: Operation success
+deactivateafter META
+
+CONFIG --> ADMIN : Election successfully configured\n(lifecycle state: Deployed)
+
+end
+
+deactivateafter CONFIG
+deactivateafter ADMIN

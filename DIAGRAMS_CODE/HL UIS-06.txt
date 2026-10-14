@@ -1,0 +1,136 @@
+title UIS-06 — Election Closing, Threshold Decryption and Result Publication
+
+
+actor "Election Operator / Governance" as OPERATOR #lightblue
+participant "Threshold Decryption Component" as DECRYPT #lightblue
+participant "Transparency / Audit API" as TRANSP #lightblue
+
+activate OPERATOR #lightblue
+
+OPERATOR -> DECRYPT : Propose decryption ceremony\n(configured share and approval thresholds)
+activate DECRYPT #lightblue
+DECRYPT -> TRANSP : Read canonical election state\n(confirm Closed/Finalized precondition)
+activate TRANSP #lightblue
+TRANSP --> DECRYPT : Return canonical state
+deactivateafter TRANSP
+
+alt Canonical state not confirmed Closed/Finalized
+
+DECRYPT --> OPERATOR : Reject ceremony proposal\n(canonical closure not confirmed)
+
+else Canonical state confirmed Closed/Finalized
+
+DECRYPT --> OPERATOR : Return ceremony state (Proposed)
+
+end
+deactivateafter DECRYPT
+
+OPERATOR -> DECRYPT : Submit independent governance approval
+activate DECRYPT #lightblue
+DECRYPT --> OPERATOR : Return updated ceremony state
+deactivateafter DECRYPT
+
+OPERATOR -> DECRYPT : Repeat approvals until configured threshold
+activate DECRYPT #lightblue
+DECRYPT --> OPERATOR : Return updated ceremony state
+deactivateafter DECRYPT
+
+OPERATOR -> DECRYPT : Submit independent trustee decryption share
+activate DECRYPT #lightblue
+DECRYPT --> OPERATOR : Return updated ceremony state
+deactivateafter DECRYPT
+
+OPERATOR -> DECRYPT : Validate share and bind it to the ceremony
+activate DECRYPT #lightblue
+DECRYPT --> OPERATOR : Return updated ceremony state
+deactivateafter DECRYPT
+
+OPERATOR -> DECRYPT : Repeat shares until configured threshold
+activate DECRYPT #lightblue
+DECRYPT --> OPERATOR : Return updated ceremony state
+deactivateafter DECRYPT
+
+OPERATOR -> DECRYPT : Request governed finalisation
+activate DECRYPT #lightblue
+
+alt Approval or share thresholds not yet satisfied
+
+DECRYPT --> OPERATOR : Reject finalize request\n(ceremony remains pending)
+
+else Approval and share thresholds satisfied
+
+DECRYPT -> TRANSP : Read canonical election state\n(re-confirm Closed/Finalized precondition)
+activate TRANSP #lightblue
+TRANSP --> DECRYPT : Return canonical state
+deactivateafter TRANSP
+
+alt Canonical state not confirmed Closed/Finalized
+
+DECRYPT --> OPERATOR : Reject finalize request\n(canonical closure not confirmed)
+
+else Canonical state confirmed Closed/Finalized
+
+DECRYPT -> DECRYPT : Validate thresholds and finalize\nusing supplied candidate tallies
+activate DECRYPT #lightblue
+deactivateafter DECRYPT
+DECRYPT -> DECRYPT : Compute deterministic result digest\nover supplied tallies and ceremony evidence
+activate DECRYPT #lightblue
+deactivateafter DECRYPT
+DECRYPT --> OPERATOR : Return ceremony state (Completed) + result digest
+
+end
+
+end
+deactivateafter DECRYPT
+
+OPERATOR -> DECRYPT : Publish final tally and ceremony evidence
+activate DECRYPT #lightblue
+DECRYPT --> OPERATOR : Return durable publication reference
+deactivateafter DECRYPT
+
+OPERATOR -> TRANSP : Publish finalised projection evidence\n(result digest, settlement reference,\nfinalized tallies, ceremony reference)
+activate TRANSP #lightblue
+TRANSP -> TRANSP : Correlate authoritative metadata/audit digests\nand mark projection Finalized
+activate TRANSP #lightblue
+deactivateafter TRANSP
+TRANSP --> OPERATOR : Confirm projection status update
+deactivateafter TRANSP
+
+deactivateafter OPERATOR
+
+actor "Election Authority / Observer" as USER #lightblue
+participant "Result Portal" as RESULT #lightblue
+
+activate USER #lightblue
+
+USER -> RESULT : Request election results
+activate RESULT #lightblue
+
+RESULT -> RESULT : Evaluate election visibility policy\n(public/private + auth mode)
+activate RESULT #lightblue
+deactivateafter RESULT
+
+RESULT -> TRANSP : Request verified result snapshot
+
+activate TRANSP #lightblue
+TRANSP -> TRANSP : Load verified projection snapshot
+activate TRANSP #lightblue
+deactivateafter TRANSP
+
+TRANSP --> RESULT : Return verified results, proofs and references
+deactivateafter TRANSP
+
+alt Result validation failed
+
+RESULT --> USER : Display result validation failure
+
+else Result validation successful
+
+RESULT --> USER : Publish election results
+RESULT --> USER : Display settlement references
+RESULT --> USER : Display verification information
+
+end
+
+deactivateafter RESULT
+deactivateafter USER

@@ -1,0 +1,120 @@
+title Internal Sequence: Election Processing Component
+
+participantgroup Election Processing Component (Internal)
+participant "Processing API Controller" as CTRL #lightblue
+participant "Queue Consumer" as CONSUMER #lightblue
+participant "Ballot Validation Service" as VALID #lightblue
+participant "Batch Builder" as BATCH #lightblue
+participant "Merkle Service" as MERKLE #lightblue
+participant "Proof Strategy" as PROOF #lightblue
+participant "Projection Publisher" as PUBLISH #lightblue
+end
+
+participantgroup External Participants
+participant "Queue Ingress Adapter" as INGRESS #lightblue
+participant "Ledger Client" as LEDGER #lightblue
+end
+
+[->CTRL : submit ballot package (authenticated: processing.ingest role)
+activate CTRL #lightblue
+CTRL -> VALID : validate package synchronously (structure, VID/commitment/envelope format,\ncanonical nullifier, duplicate vs already-anchored ballots)
+activate VALID #lightblue
+alt package rejected
+  VALID --> CTRL : rejection reason
+  deactivateafter VALID
+  [<--CTRL : rejected (400), never enqueued
+else package accepted
+  VALID --> CTRL : accepted
+  deactivateafter VALID
+  CTRL -> INGRESS : enqueue package
+  activate INGRESS #lightblue
+  INGRESS --> CTRL : accepted
+  deactivateafter INGRESS
+  [<--CTRL : accepted (202)
+end
+deactivateafter CTRL
+
+[->CONSUMER : drain ballot packages from queue (polling worker cycle)
+activate CONSUMER #lightblue
+CONSUMER -> VALID : validate ballot package (structure and nullifier/dedup check)
+activate VALID #lightblue
+alt ballot rejected
+  VALID -> VALID : record ballot rejected (no synchronous reply to queue)
+else ballot accepted
+  VALID -> BATCH : add ballot to pending batch for election
+  activate BATCH #lightblue
+  alt batch threshold not yet met (size or wait time)
+    BATCH -> BATCH : hold ballot in pending batch, await next cycle
+  else batch threshold met
+    BATCH -> MERKLE : build batch root
+    activate MERKLE #lightblue
+    MERKLE --> BATCH : root
+    deactivateafter MERKLE
+    BATCH -> PROOF : generate proof artifact
+    activate PROOF #lightblue
+    PROOF --> BATCH : proof
+    deactivateafter PROOF
+    BATCH -> PROOF : verify proof artifact
+    activate PROOF #lightblue
+    PROOF --> BATCH : verification outcome
+    deactivateafter PROOF
+    alt proof verification failed
+      BATCH -> BATCH : block affected election only, retain failed batch for retry
+    else proof verified
+      BATCH -> LEDGER : anchor settlement reference
+      activate LEDGER #lightblue
+      LEDGER --> BATCH : settlement outcome
+      deactivateafter LEDGER
+      BATCH -> PUBLISH : publish verification evidence
+      activate PUBLISH #lightblue
+      PUBLISH --> BATCH : publish outcome (failure logged, does not block batch)
+      deactivateafter PUBLISH
+      BATCH -> BATCH : mark batch processed
+    end
+  end
+  deactivateafter BATCH
+end
+deactivateafter VALID
+deactivateafter CONSUMER
+
+[->CTRL : retry failed batch (authenticated + authorized: processing.operator role)
+activate CTRL #lightblue
+CTRL -> BATCH : load failed batch and current election state
+activate BATCH #lightblue
+alt no failed batch pending (already resolved or none, or claimed by a concurrent retry)
+  BATCH --> CTRL : no-op
+  deactivateafter BATCH
+  [<--CTRL : nothing to retry
+else failed batch claimed for retry
+  BATCH -> BATCH : validate batch/package integrity, current election/transition eligibility, and no prior settlement
+  activate BATCH #lightblue
+  deactivateafter BATCH
+  BATCH -> MERKLE : reconstruct batch computation input from stored accepted ballots
+  activate MERKLE #lightblue
+  MERKLE --> BATCH : batch input
+  deactivateafter MERKLE
+  BATCH -> PROOF : re-verify stored proof artifact
+  activate PROOF #lightblue
+  PROOF --> BATCH : verification outcome
+  deactivateafter PROOF
+  alt proof verification still fails
+    BATCH -> BATCH : restore blocked/retryable state; settlement adapter is never invoked
+    BATCH --> CTRL : retry rejected (proof verification failed)
+    deactivateafter BATCH
+    [<--CTRL : retry rejected, batch remains blocked
+  else proof verification succeeds
+    BATCH -> LEDGER : anchor settlement reference
+    activate LEDGER #lightblue
+    LEDGER --> BATCH : settlement outcome
+    deactivateafter LEDGER
+    BATCH -> PUBLISH : republish verification evidence
+    activate PUBLISH #lightblue
+    PUBLISH --> BATCH : publish outcome
+    deactivateafter PUBLISH
+    BATCH --> CTRL : retry succeeded, batch settled
+    deactivateafter BATCH
+    [<--CTRL : retry result
+  end
+end
+deactivateafter CTRL
+

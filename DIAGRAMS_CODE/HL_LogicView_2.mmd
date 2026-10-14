@@ -1,0 +1,68 @@
+---
+title: System Logic View (2/2) — Settlement Closure, Decryption & Transparency/Oversight
+config:
+  flowchart:
+    rankSpacing: 100
+    nodeSpacing: 60
+---
+flowchart LR
+    %% Palette: evenly-spaced categorical hues (ColorBrewer Set3-derived) so
+    %% no two components look alike — Transparency API and Result Portal
+    %% previously shared one class/color and were indistinguishable.
+    %% Split 2/2: continues from HL_LogicView_1.mmd. BC/META/AUDIT below are
+    %% the SAME stores shown there (repeated here, read-only, so this half
+    %% remains self-contained) — see "Upstream Stores" subgraph.
+    classDef transparency fill:#8DD3C7,stroke:#777777,color:#222222
+    classDef resultportal fill:#B3DE69,stroke:#777777,color:#222222
+    classDef watcher fill:#FFFFB3,stroke:#777777,color:#222222
+    classDef ledger fill:#FCCDE5,stroke:#777777,color:#222222,stroke-dasharray: 4 2
+    classDef decrypt fill:#FDB462,stroke:#777777,color:#222222
+    classDef db fill:#E4F4E4,stroke:#777777,color:#222222
+
+    subgraph P0["Upstream Stores <i>(see Diagram 1)</i>"]
+        BC["Canonical Settlement Ledger<br/><i>(external)</i>"]
+        META[("Election Metadata Repository")]
+        AUDIT[("Audit Repository")]
+    end
+
+    DECRYPT["Threshold Decryption Orchestration Component<br/><i>(Service)</i>"]
+
+    subgraph P4["4. Transparency &amp; Oversight"]
+        TRANSP["Transparency &amp; Audit Component<br/><i>(API)</i>"]
+        DIGEST[("Authoritative Digest Source")]
+        WATCHER["Watcher Component<br/><i>(Service)</i>"]
+        PORTAL["Result Portal<br/><i>(Web App)</i>"]
+    end
+
+    %% Closing / decryption
+    DECRYPT -.->|Confirm closed| BC
+    DECRYPT -->|Publish tally| TRANSP
+
+    %% Transparency & oversight (read side, dashed)
+    TRANSP -.->|Read<br/>state| BC
+    TRANSP -.->|Fetch<br/>metadata| META
+    TRANSP -.->|Read<br/>audit| AUDIT
+    TRANSP -->|Correlate digests| DIGEST
+    WATCHER -.->|Verify read model| TRANSP
+    WATCHER -.->|Verify digest pair| DIGEST
+    PORTAL -.->|Query results| TRANSP
+
+    %% Each edge is colored a darker shade of its SOURCE component's fill,
+    %% so a line can be traced back to its origin even where lines cross.
+    %% Bolder stroke-width + larger dashes for stronger visibility.
+    %% Indices below = 0-based edge declaration order above (9 edges).
+    linkStyle 0 stroke:#B8722E,stroke-width:2.5px,stroke-dasharray:6 4
+    linkStyle 1 stroke:#B8722E,stroke-width:2.5px
+    linkStyle 2,3,4 stroke:#2E8A78,stroke-width:2.5px,stroke-dasharray:6 4
+    linkStyle 5 stroke:#2E8A78,stroke-width:2.5px
+    linkStyle 6,7 stroke:#B8B82E,stroke-width:2.5px,stroke-dasharray:6 4
+    linkStyle 8 stroke:#6B8A2E,stroke-width:2.5px,stroke-dasharray:6 4
+
+    class BC ledger
+    class META db
+    class AUDIT db
+    class DECRYPT decrypt
+    class TRANSP transparency
+    class DIGEST db
+    class WATCHER watcher
+    class PORTAL resultportal

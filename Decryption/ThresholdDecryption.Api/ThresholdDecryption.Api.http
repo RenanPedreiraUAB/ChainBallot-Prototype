@@ -1,0 +1,6 @@
+@ThresholdDecryption.Api_HostAddress = http://localhost:5287
+
+GET {{ThresholdDecryption.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

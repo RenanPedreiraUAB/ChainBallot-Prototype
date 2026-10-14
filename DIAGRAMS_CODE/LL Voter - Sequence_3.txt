@@ -1,0 +1,58 @@
+title Internal Sequence: Voter Component (3/3) — Manual Outbox Inspection &amp; Maintenance
+
+participantgroup Voter Component (Internal)
+participant "Voter Interaction Interface" as UI #lightblue
+participant "Submission Outbox" as OUTBOX #lightblue
+end
+
+participantgroup External Participants
+participant "Queue Publisher" as QUEUE #lightblue
+end
+
+[->UI : inspect outbox state
+activate UI #lightblue
+UI -> OUTBOX : read pending state
+activate OUTBOX #lightblue
+OUTBOX --> UI : pending entries and stats
+deactivateafter OUTBOX
+[<--UI : outbox state shown
+deactivateafter UI
+
+[->UI : retry next failed submission
+activate UI #lightblue
+UI -> OUTBOX : take next pending
+activate OUTBOX #lightblue
+OUTBOX --> UI : pending package or none
+deactivateafter OUTBOX
+alt pending package found
+  UI -> QUEUE : publish queued entry
+  activate QUEUE #lightblue
+  QUEUE --> UI : manual retry publish outcome
+  deactivateafter QUEUE
+  alt manual retry succeeds
+    UI -> OUTBOX : remove confirmed entry
+    activate OUTBOX #lightblue
+    OUTBOX --> UI : removed
+    deactivateafter OUTBOX
+    UI -> UI : display submission receipt (not persisted)
+    activate UI #lightblue
+    deactivateafter UI
+  else manual retry fails
+    UI -> OUTBOX : requeue pending package
+    activate OUTBOX #lightblue
+    OUTBOX --> UI : retry queued
+    deactivateafter OUTBOX
+  end
+else no pending package
+  [<--UI : no pending submissions
+end
+deactivateafter UI
+
+[->UI : compact stale/excess entries
+activate UI #lightblue
+UI -> OUTBOX : compact outbox
+activate OUTBOX #lightblue
+OUTBOX --> UI : compact summary
+deactivateafter OUTBOX
+[<--UI : compaction result shown
+deactivateafter UI

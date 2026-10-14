@@ -1,0 +1,50 @@
+title Internal Sequence: Election Processing Component (1/2) — Ballot Ingestion &amp; Batch Assembly
+
+participantgroup Election Processing Component (Internal)
+participant "Processing API Controller" as CTRL #lightblue
+participant "Queue Consumer" as CONSUMER #lightblue
+participant "Ballot Validation Service" as VALID #lightblue
+participant "Batch Builder" as BATCH #lightblue
+end
+
+participantgroup External Participants
+participant "Queue Ingress Adapter" as INGRESS #lightblue
+end
+
+[->CTRL : submit ballot package (authenticated: processing.ingest role)
+activate CTRL #lightblue
+CTRL -> VALID : validate package synchronously (structure, VID/commitment/envelope format,\ncanonical nullifier, duplicate vs already-anchored ballots)
+activate VALID #lightblue
+alt package rejected
+  VALID --> CTRL : rejection reason
+  deactivateafter VALID
+  [<--CTRL : rejected (400), never enqueued
+else package accepted
+  VALID --> CTRL : accepted
+  deactivateafter VALID
+  CTRL -> INGRESS : enqueue package
+  activate INGRESS #lightblue
+  INGRESS --> CTRL : accepted
+  deactivateafter INGRESS
+  [<--CTRL : accepted (202)
+end
+deactivateafter CTRL
+
+[->CONSUMER : drain ballot packages from queue (polling worker cycle)
+activate CONSUMER #lightblue
+CONSUMER -> VALID : validate ballot package (structure and nullifier/dedup check)
+activate VALID #lightblue
+alt ballot rejected
+  VALID -> VALID : record ballot rejected (no synchronous reply to queue)
+else ballot accepted
+  VALID -> BATCH : add ballot to pending batch for election
+  activate BATCH #lightblue
+  alt batch threshold not yet met (size or wait time)
+    BATCH -> BATCH : hold ballot in pending batch, await next cycle
+  else batch threshold met
+    BATCH -> BATCH : batch ready; proving &amp; settlement continue in Part 2
+  end
+  deactivateafter BATCH
+end
+deactivateafter VALID
+deactivateafter CONSUMER

@@ -1,0 +1,49 @@
+title Internal Sequence: Voter Component (1/3) — Authentication, Eligibility &amp; Ballot Preparation
+
+participantgroup Voter Component (Internal)
+participant "Voter Interaction Interface" as UI #lightblue
+participant "Ballot Preparation Service" as PREP #lightblue
+participant "Encryption Service" as CRYPTO #lightblue
+end
+
+participantgroup External Participants
+participant "Auth Provider Client" as AUTH #lightblue
+participant "Election Authorization Client" as AUTHZ #lightblue
+participant "Metadata Client" as META #lightblue
+end
+
+[->UI : authenticate and open ballot page
+activate UI #lightblue
+UI -> AUTH : start auth flow
+activate AUTH #lightblue
+AUTH --> UI : signed assertion
+deactivateafter AUTH
+UI -> AUTHZ : load VID profile
+activate AUTHZ #lightblue
+AUTHZ --> UI : VID profile
+deactivateafter AUTHZ
+UI -> AUTHZ : load election authorization state
+activate AUTHZ #lightblue
+AUTHZ --> UI : eligibility state
+deactivateafter AUTHZ
+UI -> META : fetch election metadata
+activate META #lightblue
+META --> UI : election context
+deactivateafter META
+UI -> AUTHZ : request one-time grant
+activate AUTHZ #lightblue
+AUTHZ --> UI : authorization grant
+deactivateafter AUTHZ
+UI -> PREP : prepare ballot
+activate PREP #lightblue
+PREP -> CRYPTO : encrypt vote payload
+activate CRYPTO #lightblue
+CRYPTO --> PREP : encrypted payload
+deactivateafter CRYPTO
+PREP -> PREP : compute ballot commitment
+activate PREP #lightblue
+deactivateafter PREP
+PREP --> UI : submission package
+deactivateafter PREP
+[<--UI : ballot prepared (staging &amp; submission continue in Part 2)
+deactivateafter UI

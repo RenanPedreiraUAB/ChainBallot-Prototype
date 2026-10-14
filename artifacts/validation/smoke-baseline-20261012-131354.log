@@ -1,0 +1,16 @@
+﻿Waiting for service health endpoints...
+[ok] CynetAuth healthy at http://localhost:5015/health
+[ok] Authorization healthy at http://localhost:5147/health
+[ok] Outbound healthy at http://localhost:5301/health
+[ok] Transparency healthy at http://localhost:5264/api/transparency/health
+[ok] Watcher healthy at http://localhost:5161/api/watcher/health
+Seeding demo users and eligibility...
+Generated credentials file: 
+D:\GitHub\ChainBallot\docker\seeding\cynetauth-users.csv
+Done. registered=175 alreadyExists=25 failed=0 seeded=200
+Credentials file: D:\GitHub\ChainBallot\docker\seeding\cynetauth-users.csv
+Attempting login/grant for voter001...
+Publishing ballot package for voter001 through outbound ingest 
+(Kafka-backed)...
+Using voter voter001
+[ok] Outbound anchored batch

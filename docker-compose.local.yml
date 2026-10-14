@@ -1,0 +1,285 @@
+services:
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:v24.1.8
+    command:
+      - redpanda
+      - start
+      - --overprovisioned
+      - --smp
+      - "1"
+      - --memory
+      - 1G
+      - --reserve-memory
+      - 0M
+      - --node-id
+      - "0"
+      - --check=false
+      - --kafka-addr
+      - PLAINTEXT://0.0.0.0:9092
+      - --advertise-kafka-addr
+      - PLAINTEXT://redpanda:9092
+    ports:
+      - "9092:9092"
+    volumes:
+      - redpanda-data:/var/lib/redpanda/data
+
+  metadata:
+    image: node:22-alpine
+    command:
+      - node
+      - /app/metadata-server.mjs
+    environment:
+      PORT: "8088"
+      METADATA_ROOT: /data
+    ports:
+      - "8088:8088"
+    volumes:
+      - ./docker/metadata-server.mjs:/app/metadata-server.mjs:ro
+      - ./docker/metadata:/data
+
+  cynetauth:
+    image: chainballot-local-cynetauth
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: CynetAuth/CynetAuth.Api/CynetAuth.Api.csproj
+        APP_DLL: CynetAuth.Api.dll
+    environment:
+      ASPNETCORE_URLS: http://+:5015
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__AuthDb: Data Source=/data/cynetauth.db
+      CHAINBALLOT_CYNETAUTH_JWT_SIGNING_KEY: CHANGE_ME_FOR_LOCAL_DOCKER_CYNETAUTH_SIGNING_KEY_1234567890
+    ports:
+      - "5015:5015"
+    volumes:
+      - cynetauth-data:/data
+
+  authorization:
+    image: chainballot-local-authorization
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Authorization/ElectionAuthorization.Api/ElectionAuthorization.Api.csproj
+        APP_DLL: ElectionAuthorization.Api.dll
+    depends_on:
+      - cynetauth
+    environment:
+      ASPNETCORE_URLS: http://+:5147
+      ASPNETCORE_ENVIRONMENT: Development
+      ConnectionStrings__AuthorizationDb: Data Source=/data/election-authorization.db
+      CHAINBALLOT_AUTHZ_TRUSTEDAUTH_SIGNING_KEY: CHANGE_ME_FOR_LOCAL_DOCKER_CYNETAUTH_SIGNING_KEY_1234567890
+      Admin__SeedKey: CHANGE_ME_LOCAL_DOCKER_AUTHZ_ADMIN_SEED_KEY
+    ports:
+      - "5147:5147"
+    volumes:
+      - authorization-data:/data
+
+  voter:
+    image: chainballot-local-voter
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Voter/VoterComponent/VoterComponent.Web/VoterComponent.Web.csproj
+        APP_DLL: VoterComponent.Web.dll
+    depends_on:
+      - cynetauth
+      - authorization
+      - metadata
+      - redpanda
+    environment:
+      ASPNETCORE_URLS: http://+:5231
+      ASPNETCORE_ENVIRONMENT: Development
+      CHAINBALLOT_VOTER__COOKIENAME: .ChainBallot.Voter.Session
+      CHAINBALLOT_VOTER__CYNETAUTHBASEURL: http://cynetauth:5015/
+      CHAINBALLOT_VOTER__ELECTIONAUTHORIZATIONBASEURL: http://authorization:5147/
+      CHAINBALLOT_VOTER__QUEUEMODE: Kafka
+      CHAINBALLOT_VOTER__KAFKA__BOOTSTRAPSERVERS: redpanda:9092
+      CHAINBALLOT_VOTER__KAFKA__TOPIC: chainballot-ballots
+      CHAINBALLOT_VOTER__METADATAENDPOINTTEMPLATE: http://metadata:8088/elections/{electionId}.json
+      CHAINBALLOT_VOTER__DEFAULTELECTIONID: election-demo
+      CHAINBALLOT_VOTER__BALLOTENCRYPTIONKEY: CHANGE_ME_FOR_LOCAL_DOCKER_VOTER_ENCRYPTION_KEY_1234567890
+      CHAINBALLOT_VOTER__SUBMISSIONOUTBOXPATH: /data/submission-outbox.json
+      CHAINBALLOT_VOTER__SUBMISSIONOUTBOXENTRYTTLMINUTES: "1440"
+      CHAINBALLOT_VOTER__SUBMISSIONOUTBOXMAXRETRYCOUNT: "10"
+      CHAINBALLOT_VOTER__SUBMISSIONOUTBOXMAXENTRIES: "1000"
+    ports:
+      - "5231:5231"
+    volumes:
+      - voter-data:/data
+
+  outbound:
+    image: chainballot-local-outbound
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: ElectionProcessing/ElectionProcessing/ElectionProcessing.Api/ElectionProcessing.Api.csproj
+        APP_DLL: ElectionProcessing.Api.dll
+    depends_on:
+      - redpanda
+      - transparency
+      - solana-validator
+    environment:
+      ASPNETCORE_URLS: http://+:5301
+      ASPNETCORE_ENVIRONMENT: Development
+      Processing__QueueMode: Kafka
+      Processing__Kafka__BootstrapServers: redpanda:9092
+      Processing__Kafka__Topic: chainballot-ballots
+      Processing__Kafka__ConsumerGroupId: chainballot-outbound
+      Processing__MaxBallotsPerBatch: "32"
+      Processing__MaxBatchWaitSeconds: "20"
+      Processing__PollIntervalMilliseconds: "1000"
+      Processing__ProjectionPublishing__Enabled: "true"
+      Processing__ProjectionPublishing__BaseUrl: http://transparency:5264
+      Processing__ProjectionPublishing__TimeoutSeconds: "10"
+      Processing__ProjectionPublishing__LifecycleState: Open
+      Processing__ProjectionPublishing__AuthHeaderName: X-Transparency-Auth
+      Processing__ProjectionPublishing__AuthToken: transparency-ingestion-dev-token
+      Processing__ProjectionPublishing__MetadataDigestEndpointTemplate: http://metadata:8088/digests/metadata/{electionId}.json
+      Processing__ProjectionPublishing__AuditDigestEndpointTemplate: http://metadata:8088/digests/audit/{electionId}.json
+      Processing__ProverMode: DeterministicStub
+      Processing__SettlementMode: SolanaRpc
+      Processing__SettlementNetwork: solana-localnet
+      Processing__SettlementProgramId: chainballot-program-v2
+      Processing__SettlementCommitment: confirmed
+      Processing__SolanaRpc__RpcEndpoint: http://solana-validator:8899
+      Processing__SolanaRpc__AnchorSubmitMethod: chainballot_anchorBatch
+      Processing__SolanaRpc__TimeoutSeconds: "30"
+      Processing__Authentication__HeaderName: X-Processing-Auth
+      Processing__Authentication__Credentials__0__Token: processing-operator-dev-token
+      Processing__Authentication__Credentials__0__Name: processing-operator
+      Processing__Authentication__Credentials__0__Roles__0: processing.operator
+      Processing__Authentication__Credentials__1__Token: processing-ingest-dev-token
+      Processing__Authentication__Credentials__1__Name: processing-ingest-service
+      Processing__Authentication__Credentials__1__Roles__0: processing.ingest
+    ports:
+      - "5301:5301"
+
+  transparency:
+    image: chainballot-local-transparency
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Transparency/TransparencyAudit.Api/TransparencyAudit.Api.csproj
+        APP_DLL: TransparencyAudit.Api.dll
+    depends_on:
+      - solana-validator
+    environment:
+      ASPNETCORE_URLS: http://+:5264
+      ASPNETCORE_ENVIRONMENT: Development
+      CHAINBALLOT_TRANSPARENCY__PROJECTIONSTOREPATH: /data/projections.json
+      CHAINBALLOT_TRANSPARENCY__AUTHORITATIVEDIGESTSOURCEMODE: Http
+      CHAINBALLOT_TRANSPARENCY__METADATADIGESTENDPOINTTEMPLATE: http://metadata:8088/digests/metadata/{electionId}.json
+      CHAINBALLOT_TRANSPARENCY__AUDITDIGESTENDPOINTTEMPLATE: http://metadata:8088/digests/audit/{electionId}.json
+      CHAINBALLOT_TRANSPARENCY__SOLANAREADMODE: Http
+      CHAINBALLOT_TRANSPARENCY__SOLANAELECTIONSTATEENDPOINTTEMPLATE: http://solana-validator:8899
+      CHAINBALLOT_TRANSPARENCY__SOLANAHTTPTIMEOUTSECONDS: "10"
+      CHAINBALLOT_TRANSPARENCY__AUTOREINDEXENABLED: "false"
+      CHAINBALLOT_TRANSPARENCY__AUTHENTICATION__HEADERNAME: X-Transparency-Auth
+      CHAINBALLOT_TRANSPARENCY__AUTHENTICATION__CREDENTIALS__0__TOKEN: transparency-ingestion-dev-token
+      CHAINBALLOT_TRANSPARENCY__AUTHENTICATION__CREDENTIALS__0__NAME: transparency-ingestion-service
+      CHAINBALLOT_TRANSPARENCY__AUTHENTICATION__CREDENTIALS__0__ROLES__0: transparency.ingestion
+      CHAINBALLOT_TRANSPARENCY__AUTHENTICATION__CREDENTIALS__1__TOKEN: transparency-reconciliation-dev-token
+      CHAINBALLOT_TRANSPARENCY__AUTHENTICATION__CREDENTIALS__1__NAME: transparency-reconciliation-operator
+      CHAINBALLOT_TRANSPARENCY__AUTHENTICATION__CREDENTIALS__1__ROLES__0: transparency.reconciliation
+    ports:
+      - "5264:5264"
+    volumes:
+      - transparency-data:/data
+
+  result:
+    image: chainballot-local-result
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Result/ResultPortal.Web/ResultPortal.Web.csproj
+        APP_DLL: ResultPortal.Web.dll
+    depends_on:
+      - transparency
+    environment:
+      ASPNETCORE_URLS: http://+:5181
+      ASPNETCORE_ENVIRONMENT: Development
+      CHAINBALLOT_RESULTPORTAL__TRANSPARENCYBASEURL: http://transparency:5264
+      CHAINBALLOT_RESULTPORTAL__TRANSPARENCYTIMEOUTSECONDS: "10"
+      CHAINBALLOT_RESULTPORTAL__AUTHMODE: Open
+      CHAINBALLOT_RESULTPORTAL__DEFAULTELECTIONVISIBILITY: Public
+    ports:
+      - "5181:5181"
+
+  watcher:
+    image: chainballot-local-watcher
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Watcher/WatcherAudit.Api/WatcherAudit.Api.csproj
+        APP_DLL: WatcherAudit.Api.dll
+    depends_on:
+      - transparency
+      - metadata
+    environment:
+      ASPNETCORE_URLS: http://+:5161
+      ASPNETCORE_ENVIRONMENT: Development
+      CHAINBALLOT_WATCHER__TRANSPARENCYBASEURL: http://transparency:5264
+      CHAINBALLOT_WATCHER__TRANSPARENCYTIMEOUTSECONDS: "10"
+      CHAINBALLOT_WATCHER__DIGESTSOURCEMODE: Http
+      CHAINBALLOT_WATCHER__METADATADIGESTENDPOINTTEMPLATE: http://metadata:8088/digests/metadata/{electionId}.json
+      CHAINBALLOT_WATCHER__AUDITDIGESTENDPOINTTEMPLATE: http://metadata:8088/digests/audit/{electionId}.json
+      CHAINBALLOT_WATCHER__REPORTSTOREPATH: /data/reports.json
+      CHAINBALLOT_WATCHER__REPORTSIGNINGKEY: watcher-local-signing-key
+      CHAINBALLOT_WATCHER__OPERATORACCESSHEADERNAME: X-Operator-Key
+      CHAINBALLOT_WATCHER__OPERATORACCESSKEY: watcher-operator-key
+    ports:
+      - "5161:5161"
+    volumes:
+      - watcher-data:/data
+
+  decryption:
+    image: chainballot-local-decryption
+    build:
+      context: .
+      dockerfile: Dockerfile.service
+      args:
+        PROJECT_PATH: Decryption/ThresholdDecryption.Api/ThresholdDecryption.Api.csproj
+        APP_DLL: ThresholdDecryption.Api.dll
+    environment:
+      ASPNETCORE_URLS: http://+:5287
+      ASPNETCORE_ENVIRONMENT: Development
+      CHAINBALLOT_THRESHOLDDECRYPTION__STOREPATH: /data/ceremonies.json
+      CHAINBALLOT_THRESHOLDDECRYPTION__OPERATORACCESSHEADERNAME: X-Operator-Key
+      CHAINBALLOT_THRESHOLDDECRYPTION__OPERATORACCESSKEY: decryption-operator-key
+      CHAINBALLOT_THRESHOLDDECRYPTION__TRANSPARENCYBASEURL: http://transparency:5264
+    ports:
+      - "5287:5287"
+    volumes:
+      - decryption-data:/data
+
+  solana-validator:
+    image: solanalabs/solana:v1.18.26
+    command:
+      - solana-test-validator
+      - --rpc-port
+      - "8899"
+      - --rpc-bind-address
+      - 0.0.0.0
+      - --ledger
+      - /ledger
+      - --reset
+    ports:
+      - "8899:8899"
+    volumes:
+      - solana-ledger:/ledger
+volumes:
+  redpanda-data:
+  cynetauth-data:
+  authorization-data:
+  voter-data:
+  transparency-data:
+  watcher-data:
+  decryption-data:
+  solana-ledger:

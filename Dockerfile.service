@@ -1,0 +1,13 @@
+FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
+ARG PROJECT_PATH
+WORKDIR /src
+COPY . .
+RUN dotnet restore "$PROJECT_PATH"
+RUN dotnet publish "$PROJECT_PATH" -c Release -o /app/publish /p:UseAppHost=false --no-restore
+
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+ARG APP_DLL
+ENV APP_DLL=${APP_DLL}
+WORKDIR /app
+COPY --from=build /app/publish .
+ENTRYPOINT ["sh", "-c", "dotnet \"$APP_DLL\""]

@@ -1,0 +1,88 @@
+@page
+@model ResultPortal.Web.Pages.Results.IndexModel
+@{
+    ViewData["Title"] = "Verified Results";
+}
+
+<h1>Verified Results</h1>
+<p class="text-muted">Read the latest verified snapshot and settlement reference for an election id.</p>
+
+<form method="get" class="mb-4">
+    <label asp-for="ElectionId" class="form-label">Election ID</label>
+    <input asp-for="ElectionId" class="form-control" />
+    <button type="submit" class="btn btn-primary mt-2">Load Results</button>
+</form>
+
+@if (!string.IsNullOrWhiteSpace(Model.InfoMessage))
+{
+    <div class="alert alert-info">@Model.InfoMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-warning">@Model.ErrorMessage</div>
+}
+
+@if (Model.HasResult)
+{
+    <section>
+        <h2>Snapshot</h2>
+        <dl>
+            <dt>Election ID</dt>
+            <dd>@Model.Snapshot!.ElectionId</dd>
+            <dt>Lifecycle State</dt>
+            <dd>@Model.Snapshot.LifecycleState</dd>
+            <dt>Result Digest</dt>
+            <dd>@Model.Snapshot.ResultDigest</dd>
+            <dt>Generated At (UTC)</dt>
+            <dd>@Model.Snapshot.GeneratedAtUtc</dd>
+        </dl>
+
+        <h3>Settlement Reference</h3>
+        <dl>
+            <dt>Network</dt>
+            <dd>@Model.Snapshot.SettlementReference.Network</dd>
+            <dt>Program ID</dt>
+            <dd>@Model.Snapshot.SettlementReference.ProgramId</dd>
+            <dt>Transaction Signature</dt>
+            <dd>@Model.Snapshot.SettlementReference.TransactionSignature</dd>
+            <dt>Slot</dt>
+            <dd>@Model.Snapshot.SettlementReference.Slot</dd>
+            <dt>Commitment</dt>
+            <dd>@Model.Snapshot.SettlementReference.Commitment</dd>
+            <dt>Block Time (UTC)</dt>
+            <dd>@Model.Snapshot.SettlementReference.BlockTimeUtc</dd>
+        </dl>
+
+        <h3>Candidate Tallies</h3>
+        @if (Model.Snapshot.CandidateTallies.Count == 0)
+        {
+            <p>No candidate tallies are available in this snapshot.</p>
+        }
+        else
+        {
+            <table class="table">
+                <thead>
+                <tr>
+                    <th>Candidate ID</th>
+                    <th>Tally</th>
+                </tr>
+                </thead>
+                <tbody>
+                @foreach (var tally in Model.Snapshot.CandidateTallies.OrderBy(x => x.Key, StringComparer.Ordinal))
+                {
+                    <tr>
+                        <td>@tally.Key</td>
+                        <td>@tally.Value</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        }
+    </section>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.CorrelationId))
+{
+    <p class="text-muted"><small>Correlation ID: @Model.CorrelationId</small></p>
+}

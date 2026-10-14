@@ -1,0 +1,141 @@
+---
+title: Figure 5.2 - Logical Deployment and Scaling Strategy
+config:
+  layout: elk
+  flowchart:
+    rankSpacing: 80
+    nodeSpacing: 50
+---
+flowchart TD
+    %% Physical/deployment view:
+    %% - UI traffic enters through redundant load balancers.
+    %% - Every deployable service runs as multiple replicas.
+    %% - Stateless services are autoscaling-ready.
+    %% - Configuration runs locally on an administrator workstation.
+    %% - Worker pods scale from both CPU utilization and Kafka lag.
+
+    classDef voter fill:#80B1D3,stroke:#777777,color:#222222
+    classDef auth fill:#FB8072,stroke:#777777,color:#222222
+    classDef process fill:#BC80BD,stroke:#777777,color:#222222
+    classDef transparency fill:#8DD3C7,stroke:#777777,color:#222222
+    classDef resultportal fill:#B3DE69,stroke:#777777,color:#222222
+    classDef watcher fill:#FFFFB3,stroke:#777777,color:#222222
+    classDef decrypt fill:#FDB462,stroke:#777777,color:#222222
+    classDef config fill:#CCEBC5,stroke:#777777,color:#222222
+    classDef broker fill:#FFED6F,stroke:#777777,color:#222222
+    classDef ledger fill:#FCCDE5,stroke:#777777,color:#222222,stroke-dasharray: 4 2
+    classDef ttp fill:#BEBADA,stroke:#777777,color:#222222,stroke-dasharray: 4 2
+    classDef db fill:#E4F4E4,stroke:#777777,color:#222222
+    classDef browser fill:#CFD8DC,stroke:#777777,color:#222222
+    classDef infra fill:#FFF3CD,stroke:#777777,color:#222222
+    classDef scale fill:#F0F0F0,stroke:#555555,color:#222222,stroke-dasharray: 2 2
+
+    CLIENTS["Voter / Operator Browsers"]
+    ADMIN["Election Configuration Component<br/><i>Local desktop application on admin workstation</i>"]
+
+    subgraph EDGE["Edge / Ingress Layer"]
+        direction LR
+        LB1["Load Balancer / Ingress A<br/><i>active</i>"]
+        LB2["Load Balancer / Ingress B<br/><i>standby or active-active</i>"]
+    end
+
+    subgraph UI_TIER["UI-Facing Application Pods<br/><i>multiple replicas behind load balancing</i>"]
+        direction LR
+        VOTER["Voter Component<br/><i>2-6 replicas</i>"]
+        TRANSP["Transparency &amp; Audit Component<br/><i>2-6 replicas</i>"]
+        RESULT["Result Portal<br/><i>2-4 replicas</i>"]
+        WATCHER["Watcher Component<br/><i>2-4 replicas</i>"]
+    end
+
+    subgraph API_TIER["Internal API / Service Pods<br/><i>multiple replicas; no direct UI</i>"]
+        direction LR
+        AUTH["Election Authorization Component<br/><i>2-6 replicas</i>"]
+        DECRYPT["Threshold Decryption Orchestration Component<br/><i>2-4 replicas</i>"]
+    end
+
+    subgraph WORKER_TIER["Election Processing Worker Pool<br/><i>replicated pods scheduled across nodes</i>"]
+        direction LR
+        PROC1["Processing Pod 1"]
+        PROC2["Processing Pod 2"]
+        PROC3["Processing Pod 3"]
+        PROCN["Processing Pod N<br/><i>autoscaling limit</i>"]
+    end
+
+    subgraph SCALE_TIER["Autoscaling Control Plane"]
+        direction LR
+        HPA_UI["HPA for UI Pods<br/><i>CPU target 60%</i>"]
+        HPA_API["HPA for Internal Services<br/><i>CPU target 60%</i>"]
+        HPA_PROC["HPA for Processing Pods<br/><i>CPU target 60%<br/>min 1 / max 10</i>"]
+        KEDA_PROC["KEDA ScaledObject<br/><i>Kafka lag &gt;100 messages<br/>min 1 / max 20</i>"]
+    end
+
+    BROKER{{"Message Broker<br/><i>Kafka / Redpanda<br/>(prototype: single broker;<br/>production: clustered)</i>"}}
+    DATA_TIER[("Repository / Data Tier<br/><i>Metadata, VID, authorization,<br/>audit and digest stores<br/>(replication: illustrative)</i>")]
+    TTP["TTP Authentication Service<br/><i>external service</i>"]
+    LEDGER["Canonical Settlement Ledger<br/><i>external blockchain network</i>"]
+
+    CLIENTS --> LB1
+    CLIENTS --> LB2
+
+    LB1 --> VOTER
+    LB1 --> TRANSP
+    LB1 --> RESULT
+    LB1 --> WATCHER
+
+    LB2 --> VOTER
+    LB2 --> TRANSP
+    LB2 --> RESULT
+    LB2 --> WATCHER
+
+    ADMIN -.->|local administration| DATA_TIER
+    ADMIN -.->|local administration| LEDGER
+
+    VOTER --> AUTH
+    TRANSP --> AUTH
+    RESULT --> AUTH
+    WATCHER --> AUTH
+    DECRYPT --> AUTH
+
+    UI_TIER --> DATA_TIER
+    API_TIER --> DATA_TIER
+    WORKER_TIER --> DATA_TIER
+
+    UI_TIER -.->|external calls| TTP
+    API_TIER -.->|external calls| TTP
+    DECRYPT -.->|settlement / verification| LEDGER
+    WORKER_TIER -.->|settlement output| LEDGER
+
+    DECRYPT -->|publishes / requests jobs| BROKER
+    WORKER_TIER -->|consumes and publishes| BROKER
+    WATCHER -->|observes events| BROKER
+
+    HPA_UI -.->|scales| UI_TIER
+    HPA_API -.->|scales| API_TIER
+    HPA_PROC -.->|scales| WORKER_TIER
+    KEDA_PROC -.->|scales on Kafka lag| WORKER_TIER
+
+    %% linkStyle indices = 0-based edge declaration order above (31 edges).
+    linkStyle 0,1 stroke:#455A64,stroke-width:2.5px
+    linkStyle 2,3,4,5,6,7,8,9 stroke:#B8860B,stroke-width:2.5px
+    linkStyle 10,11 stroke:#4D7C4D,stroke-width:2.5px,stroke-dasharray:6 4
+    linkStyle 12,13,14,15,16 stroke:#0F766E,stroke-width:2px
+    linkStyle 17,18,19 stroke:#15803D,stroke-width:2.5px
+    linkStyle 20,21,22,23 stroke:#BE123C,stroke-width:2px,stroke-dasharray:6 4
+    linkStyle 24,25,26 stroke:#A16207,stroke-width:2.5px
+    linkStyle 27,28,29,30 stroke:#555555,stroke-width:2px,stroke-dasharray:3 3
+
+    class CLIENTS browser
+    class ADMIN config
+    class LB1,LB2 infra
+    class VOTER voter
+    class TRANSP transparency
+    class RESULT resultportal
+    class WATCHER watcher
+    class AUTH auth
+    class DECRYPT decrypt
+    class PROC1,PROC2,PROC3,PROCN process
+    class HPA_UI,HPA_API,HPA_PROC,KEDA_PROC scale
+    class BROKER broker
+    class DATA_TIER db
+    class TTP ttp
+    class LEDGER ledger

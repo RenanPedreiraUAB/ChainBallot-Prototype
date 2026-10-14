@@ -1,0 +1,40 @@
+title Internal Sequence: Watcher Component (1/2) — Audit Execution &amp; Consistency Checking
+
+participantgroup Watcher Component (Internal)
+participant "Watcher API Controller" as CTRL #lightblue
+participant "Audit Runner" as RUNNER #lightblue
+participant "Consistency Check Service" as CHECK #lightblue
+end
+
+participantgroup External Participants
+participant "Transparency API Adapter" as TRANSP #lightblue
+participant "Authoritative Digest Source Adapter" as DIGEST #lightblue
+end
+
+[->CTRL : run audit
+activate CTRL #lightblue
+CTRL -> RUNNER : start audit run
+activate RUNNER #lightblue
+RUNNER -> CHECK : compare sources
+activate CHECK #lightblue
+CHECK -> TRANSP : read verified snapshot
+activate TRANSP #lightblue
+TRANSP --> CHECK : snapshot
+deactivateafter TRANSP
+CHECK -> TRANSP : read projection status
+activate TRANSP #lightblue
+TRANSP --> CHECK : projection status
+deactivateafter TRANSP
+CHECK -> TRANSP : read canonical settlement state
+activate TRANSP #lightblue
+TRANSP --> CHECK : canonical state
+deactivateafter TRANSP
+CHECK -> DIGEST : read authoritative metadata/audit digests
+activate DIGEST #lightblue
+DIGEST --> CHECK : digest pair
+deactivateafter DIGEST
+CHECK --> RUNNER : audit findings (or upstream read/check error)
+deactivateafter CHECK
+deactivateafter RUNNER
+[<--CTRL : audit findings ready (signing &amp; persistence continue in Part 2)
+deactivateafter CTRL

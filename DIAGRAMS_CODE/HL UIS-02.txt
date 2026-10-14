@@ -1,0 +1,135 @@
+title UIS-02 — Ballot Casting and Vote Submission
+
+
+actor "Voter" as VOTER #lightblue
+
+participant "Voter Component" as VC #lightblue
+participant "Election Authorization Component" as AUTH #lightblue
+database "Voting Authorization Repository" as AUTHDB #lightblue
+participant "Message Broker\n(Durable Queue Infrastructure)" as QUEUE #lightblue
+participant "Election Processing Component" as PROCESS #lightblue
+participant "Solana Blockchain Network" as BC #lightblue
+participant "Transparency / Audit API" as TRANSP #lightblue
+
+activate VOTER #lightblue
+activate VC #lightblue
+
+VOTER -> VC : Select candidate to vote
+VC --> VOTER: Request candidate confirmation
+VOTER -> VC : Submit ballot
+
+VC -> AUTH : Request one-time voting grant
+
+activate AUTH #lightblue
+
+AUTH -> AUTHDB : Validate voting authorization state
+
+activate AUTHDB #lightblue
+AUTHDB --> AUTH : Return voting authorization status
+deactivateafter AUTHDB
+
+alt Invalid or consumed authorization
+AUTH --> VC : Returns error: no authorization to vote
+VC --> VOTER : Display submission failure
+
+else Valid authorization
+
+AUTH --> VC : Return authorization grant
+deactivateafter AUTH
+
+VC -> VC : Encrypt canonical ballot representation
+activate VC #lightblue
+deactivateafter VC
+
+VC -> VC : Generate ballot submission package\n(encrypted vote, VID, election identifier,\nballot commitment, submission nonce, ballot nullifier)
+activate VC #lightblue
+deactivateafter VC
+
+VC -> VC : Durably persist package in submission outbox\n(normal path, BEFORE authorization is consumed)
+activate VC #lightblue
+deactivateafter VC
+
+alt Durable staging failed
+VC --> VOTER : Display submission failure (authorization not consumed)
+deactivateafter VC
+deactivateafter VOTER
+
+else Durable staging succeeded
+
+VC -> AUTH : Consume authorization grant\n(grant identifier + submission nonce)
+activate AUTH #lightblue
+AUTH -> AUTHDB : Atomically consume vote authorization
+activate AUTHDB #lightblue
+AUTHDB --> AUTH : Confirm update operation
+deactivateafter AUTHDB
+AUTH --> VC : Confirm authorization consumption
+deactivateafter AUTH
+
+VC -> QUEUE : Publish encrypted ballot package
+activate QUEUE #lightblue
+QUEUE --> VC : Confirm broker acknowledgement
+deactivateafter QUEUE
+
+VC -> VC : Confirm publication and remove outbox entry\n(reconciles staged package with confirmed publish)
+activate VC #lightblue
+deactivateafter VC
+
+VC --> VOTER : Confirm ballot submission
+
+deactivateafter VC
+deactivateafter VOTER
+
+end
+
+activate QUEUE #lightblue
+QUEUE -> PROCESS : Deliver ballot message to consumer group
+deactivateafter QUEUE
+
+activate PROCESS #lightblue
+PROCESS -> PROCESS : Validate ballot package structure
+activate PROCESS #lightblue
+deactivateafter PROCESS
+
+PROCESS -> PROCESS : Validate ballot nullifier\n(replay and duplicate detection)
+activate PROCESS #lightblue
+deactivateafter PROCESS
+
+PROCESS -> PROCESS : Add ballot commitment to open batch
+activate PROCESS #lightblue
+deactivateafter PROCESS
+
+PROCESS -> PROCESS : Build Merkle tree\nover ballot commitments
+activate PROCESS #lightblue
+deactivateafter PROCESS
+
+PROCESS -> PROCESS : Generate batching proof artifact
+activate PROCESS #lightblue
+deactivateafter PROCESS
+
+PROCESS -> PROCESS : Verify proof artifact\nbefore settlement anchoring
+activate PROCESS #lightblue
+deactivateafter PROCESS
+
+alt Proof verification failed
+
+PROCESS -> PROCESS : Block affected election queue\n(other elections continue processing)
+activate PROCESS #lightblue
+deactivateafter PROCESS
+
+else Proof verification succeeded
+
+PROCESS -> BC : Submit batch root, proof reference,\nand settlement metadata
+
+activate BC #lightblue
+BC --> PROCESS : Confirm settlement (transaction signature, slot)
+deactivateafter BC
+
+PROCESS -> TRANSP : Publish anchored-batch projection evidence\n(auto-ingest: candidate tallies, VID/batch entries)
+activate TRANSP #lightblue
+TRANSP --> PROCESS : Acknowledge projection update
+deactivateafter TRANSP
+
+end
+
+deactivateafter PROCESS
+end

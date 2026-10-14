@@ -1,0 +1,42 @@
+title Internal Sequence: Configuration Component (2/2) — Deployment Finalization &amp; Sizing Guidance
+
+participantgroup Configuration Component (Internal)
+participant "Administrative Interface" as UI #lightblue
+participant "Election Draft Coordination Service" as CTRL #lightblue
+participant "Deployment Manifest Service" as MANIFEST #lightblue
+participant "Scale Recommendation Service" as SCALE #lightblue
+participant "Draft Store" as DRAFT #lightblue
+end
+
+participantgroup External Participants
+participant "Ledger Init Client" as LEDGER #lightblue
+end
+
+[->UI : view deployment sizing guidance
+activate UI #lightblue
+UI -> SCALE : derive deployment guidance
+activate SCALE #lightblue
+SCALE --> UI : sizing recommendation
+deactivateafter SCALE
+[<--UI : sizing guidance shown
+deactivateafter UI
+
+note over UI,LEDGER: Deploy election continues from Part 1 (validated, metadata published).
+activate UI #lightblue
+activate CTRL #lightblue
+CTRL -> LEDGER : initialize reusable election program
+activate LEDGER #lightblue
+LEDGER --> CTRL : contract reference
+deactivateafter LEDGER
+CTRL -> MANIFEST : build deployment manifest
+activate MANIFEST #lightblue
+MANIFEST --> CTRL : manifest
+deactivateafter MANIFEST
+CTRL -> DRAFT : persist manifest and updated election record
+activate DRAFT #lightblue
+DRAFT --> CTRL : persisted
+deactivateafter DRAFT
+CTRL --> UI : election deployed
+deactivateafter CTRL
+[<--UI : deployment result shown
+deactivateafter UI

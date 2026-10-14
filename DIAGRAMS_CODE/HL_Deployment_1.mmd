@@ -1,0 +1,88 @@
+---
+title: Figure 5.2 (1/3) - Client Ingress & Authorization
+config:
+  layout: elk
+  flowchart:
+    rankSpacing: 80
+    nodeSpacing: 50
+---
+flowchart TD
+    %% Physical/deployment view:
+    %% - UI traffic enters through redundant load balancers.
+    %% - Every deployable service runs as multiple replicas.
+    %% Split 1/3: client-facing ingress & authorization path. Shared data
+    %% tier/settlement/messaging is HL_Deployment_2.mmd; autoscaling control
+    %% plane for these same tiers is HL_Deployment_3.mmd. Subgraphs use a
+    %% vertical (TB) internal layout to keep the render narrow/tall.
+
+    classDef voter fill:#80B1D3,stroke:#777777,color:#222222
+    classDef auth fill:#FB8072,stroke:#777777,color:#222222
+    classDef transparency fill:#8DD3C7,stroke:#777777,color:#222222
+    classDef resultportal fill:#B3DE69,stroke:#777777,color:#222222
+    classDef watcher fill:#FFFFB3,stroke:#777777,color:#222222
+    classDef decrypt fill:#FDB462,stroke:#777777,color:#222222
+    classDef ttp fill:#BEBADA,stroke:#777777,color:#222222,stroke-dasharray: 4 2
+    classDef browser fill:#CFD8DC,stroke:#777777,color:#222222
+    classDef infra fill:#FFF3CD,stroke:#777777,color:#222222
+
+    CLIENTS["Voter / Operator Browsers"]
+
+    subgraph EDGE["Edge / Ingress Layer"]
+        direction TB
+        LB1["Load Balancer / Ingress A<br/><i>active</i>"]
+        LB2["Load Balancer / Ingress B<br/><i>standby or active-active</i>"]
+    end
+
+    subgraph UI_TIER["UI-Facing Application Pods<br/><i>multiple replicas behind load balancing</i>"]
+        direction TB
+        VOTER["Voter Component<br/><i>2-6 replicas</i>"]
+        TRANSP["Transparency &amp; Audit Component<br/><i>2-6 replicas</i>"]
+        RESULT["Result Portal<br/><i>2-4 replicas</i>"]
+        WATCHER["Watcher Component<br/><i>2-4 replicas</i>"]
+    end
+
+    subgraph API_TIER["Internal API / Service Pods<br/><i>multiple replicas; no direct UI</i>"]
+        direction TB
+        AUTH["Election Authorization Component<br/><i>2-6 replicas</i>"]
+        DECRYPT["Threshold Decryption Orchestration Component<br/><i>2-4 replicas</i>"]
+    end
+
+    TTP["TTP Authentication Service<br/><i>external service</i>"]
+
+    CLIENTS --> LB1
+    CLIENTS --> LB2
+
+    LB1 --> VOTER
+    LB1 --> TRANSP
+    LB1 --> RESULT
+    LB1 --> WATCHER
+
+    LB2 --> VOTER
+    LB2 --> TRANSP
+    LB2 --> RESULT
+    LB2 --> WATCHER
+
+    VOTER --> AUTH
+    TRANSP --> AUTH
+    RESULT --> AUTH
+    WATCHER --> AUTH
+    DECRYPT --> AUTH
+
+    UI_TIER -.->|external calls| TTP
+    API_TIER -.->|external calls| TTP
+
+    %% linkStyle indices = 0-based edge declaration order above (17 edges).
+    linkStyle 0,1 stroke:#455A64,stroke-width:2.5px
+    linkStyle 2,3,4,5,6,7,8,9 stroke:#B8860B,stroke-width:2.5px
+    linkStyle 10,11,12,13,14 stroke:#0F766E,stroke-width:2px
+    linkStyle 15,16 stroke:#BE123C,stroke-width:2px,stroke-dasharray:6 4
+
+    class CLIENTS browser
+    class LB1,LB2 infra
+    class VOTER voter
+    class TRANSP transparency
+    class RESULT resultportal
+    class WATCHER watcher
+    class AUTH auth
+    class DECRYPT decrypt
+    class TTP ttp

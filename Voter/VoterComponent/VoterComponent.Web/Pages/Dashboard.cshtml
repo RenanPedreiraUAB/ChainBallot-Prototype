@@ -1,0 +1,117 @@
+@page
+@model VoterComponent.Web.Pages.DashboardModel
+@{
+    ViewData["Title"] = "Ballot Dashboard";
+}
+
+<section class="dashboard-shell">
+    <div class="dashboard-hero">
+        <div>
+            <div class="eyebrow">Inbound / Ballot Dashboard</div>
+            <h1>Authenticate, inspect eligibility, then prepare the ballot package.</h1>
+            <p class="lead">The dashboard resolves VID state from Election Authorization and loads metadata for the selected election when available.</p>
+        </div>
+
+        <div class="hero-stats">
+            <div class="stat-card">
+                <span>Election</span>
+                <strong>@Model.Dashboard?.ElectionId</strong>
+            </div>
+            <div class="stat-card">
+                <span>Eligibility</span>
+                <strong>@Model.Dashboard?.AuthorizationState?.Status</strong>
+            </div>
+            <div class="stat-card">
+                <span>VID</span>
+                <strong>@Model.Dashboard?.Profile?.Vid</strong>
+            </div>
+        </div>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(Model.SubmissionFeedback))
+    {
+        <div class="alert alert-info mt-4">@Model.SubmissionFeedback</div>
+    }
+
+    <div class="content-grid">
+        <div class="panel">
+            <h2>Resolve election</h2>
+            <p class="muted">Load metadata and eligibility for the election you want to vote in.</p>
+
+            <form method="get" class="stacked-form">
+                <label for="ElectionId" class="form-label">Election ID</label>
+                <input id="ElectionId" name="ElectionId" value="@Model.Dashboard?.ElectionId" class="form-control form-control-lg" />
+                <button type="submit" class="btn btn-outline-light mt-3">Load election</button>
+            </form>
+
+            <div class="meta-card mt-4">
+                <div><span>Metadata endpoint</span><strong>@(Model.Dashboard?.MetadataEndpoint ?? "Not configured")</strong></div>
+                <div><span>Metadata hash</span><strong>@(Model.Dashboard?.Metadata?.Verification.MetadataHash ?? "Unavailable")</strong></div>
+                <div><span>Queue mode</span><strong>InMemory prototype queue</strong></div>
+            </div>
+
+            <div class="mt-4">
+                <h3>Current status</h3>
+                <p class="muted">@(Model.Dashboard?.StatusMessage ?? "Ready for ballot preparation.")</p>
+            </div>
+        </div>
+
+        <div class="panel panel-accent">
+            <h2>Ballot selection</h2>
+            <p class="muted">Choose a candidate and submit the encrypted package. The authorization grant is issued and consumed as part of the submission flow.</p>
+
+            @if (Model.Dashboard?.CandidateOptions?.Count > 0)
+            {
+                <form method="post" asp-page-handler="SubmitBallot" class="stacked-form">
+                    <input type="hidden" asp-for="Input.ElectionId" />
+
+                    <label asp-for="Input.CandidateId" class="form-label">Candidate</label>
+                    <select asp-for="Input.CandidateId" id="candidate-select" class="form-select form-select-lg">
+                        @foreach (var candidate in Model.Dashboard!.CandidateOptions)
+                        {
+                            <option value="@candidate.Id" data-name="@candidate.Name" selected="@(candidate.Id == Model.Input.CandidateId)">@candidate.Name (@candidate.Party)</option>
+                        }
+                    </select>
+
+                    <input type="hidden" asp-for="Input.CandidateName" id="candidate-name" />
+
+                    <button type="submit" class="btn btn-primary btn-lg mt-4" disabled="@(!(Model.Dashboard?.CanVote ?? false))">Encrypt and queue ballot</button>
+                </form>
+
+                <script>
+                    (function () {
+                        var select = document.getElementById('candidate-select');
+                        var hiddenName = document.getElementById('candidate-name');
+                        if (!select || !hiddenName) { return; }
+                        var syncName = function () {
+                            var selected = select.options[select.selectedIndex];
+                            hiddenName.value = selected ? selected.getAttribute('data-name') : '';
+                        };
+                        select.addEventListener('change', syncName);
+                        syncName();
+                    })();
+                </script>
+            }
+            else
+            {
+                <form method="post" asp-page-handler="SubmitBallot" class="stacked-form">
+                    <input type="hidden" asp-for="Input.ElectionId" />
+
+                    <label asp-for="Input.CandidateId" class="form-label">Candidate ID</label>
+                    <input asp-for="Input.CandidateId" class="form-control form-control-lg" type="number" />
+
+                    <label asp-for="Input.CandidateName" class="form-label mt-3">Candidate name</label>
+                    <input asp-for="Input.CandidateName" class="form-control form-control-lg" />
+
+                    <button type="submit" class="btn btn-primary btn-lg mt-4" disabled="@(!(Model.Dashboard?.CanVote ?? false))">Encrypt and queue ballot</button>
+                </form>
+            }
+
+            <div class="submission-summary mt-4">
+                <h3>Submission trace</h3>
+                <p><span>Queued item:</span> @(Model.Dashboard?.LastQueueReceipt?.QueueItemId.ToString("N") ?? "None")</p>
+                <p><span>Queued at:</span> @(Model.Dashboard?.LastQueueReceipt?.QueuedAtUtc.ToString("u") ?? "None")</p>
+            </div>
+        </div>
+    </div>
+</section>

@@ -1,0 +1,187 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: chainballot
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redpanda
+  namespace: chainballot
+  labels:
+    app: redpanda
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redpanda
+  template:
+    metadata:
+      labels:
+        app: redpanda
+    spec:
+      containers:
+      - name: redpanda
+        image: docker.redpanda.com/redpandadata/redpanda:v24.1.8
+        args:
+        - redpanda
+        - start
+        - --overprovisioned
+        - --smp
+        - "1"
+        - --memory
+        - 1G
+        - --reserve-memory
+        - 0M
+        - --node-id
+        - "0"
+        - --check=false
+        - --kafka-addr
+        - PLAINTEXT://0.0.0.0:9092
+        - --advertise-kafka-addr
+        - PLAINTEXT://redpanda.chainballot.svc.cluster.local:9092
+        ports:
+        - containerPort: 9092
+          name: kafka
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redpanda
+  namespace: chainballot
+spec:
+  selector:
+    app: redpanda
+  ports:
+  - name: kafka
+    port: 9092
+    targetPort: 9092
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: outbound
+  namespace: chainballot
+  labels:
+    app: outbound
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: outbound
+  template:
+    metadata:
+      labels:
+        app: outbound
+    spec:
+      containers:
+      - name: outbound
+        image: chainballot-local-outbound:latest
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 5301
+          name: http
+        resources:
+          requests:
+            cpu: "250m"
+            memory: "256Mi"
+          limits:
+            cpu: "1000m"
+            memory: "768Mi"
+        env:
+        - name: ASPNETCORE_URLS
+          value: http://+:5301
+        - name: ASPNETCORE_ENVIRONMENT
+          value: Development
+        - name: Processing__QueueMode
+          value: Kafka
+        - name: Processing__Kafka__BootstrapServers
+          value: redpanda:9092
+        - name: Processing__Kafka__Topic
+          value: chainballot-ballots
+        - name: Processing__Kafka__ConsumerGroupId
+          value: chainballot-outbound
+        - name: Processing__MaxBallotsPerBatch
+          value: "32"
+        - name: Processing__MaxBatchWaitSeconds
+          value: "10"
+        - name: Processing__PollIntervalMilliseconds
+          value: "500"
+        - name: Processing__ProjectionPublishing__Enabled
+          value: "false"
+        - name: Processing__ProverMode
+          value: DeterministicStub
+        - name: Processing__SettlementMode
+          value: Mock
+        - name: Processing__Authentication__HeaderName
+          value: X-Processing-Auth
+        - name: Processing__Authentication__Credentials__0__Token
+          value: processing-operator-dev-token
+        - name: Processing__Authentication__Credentials__0__Name
+          value: processing-operator
+        - name: Processing__Authentication__Credentials__0__Roles__0
+          value: processing.operator
+        - name: Processing__Authentication__Credentials__1__Token
+          value: processing-ingest-dev-token
+        - name: Processing__Authentication__Credentials__1__Name
+          value: processing-ingest-service
+        - name: Processing__Authentication__Credentials__1__Roles__0
+          value: processing.ingest
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 5301
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 5301
+          initialDelaySeconds: 20
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: outbound
+  namespace: chainballot
+spec:
+  selector:
+    app: outbound
+  ports:
+  - name: http
+    port: 5301
+    targetPort: 5301
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: outbound-hpa
+  namespace: chainballot
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: outbound
+  minReplicas: 1
+  maxReplicas: 10
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 0
+      policies:
+      - type: Percent
+        value: 100
+        periodSeconds: 15
+    scaleDown:
+      stabilizationWindowSeconds: 120
+      policies:
+      - type: Percent
+        value: 50
+        periodSeconds: 30
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 60

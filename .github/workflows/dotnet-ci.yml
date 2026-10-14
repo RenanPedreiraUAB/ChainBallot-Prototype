@@ -1,0 +1,69 @@
+name: .NET CI
+
+on:
+  push:
+    branches:
+      - "**"
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "DIAGRAMS/**"
+  pull_request:
+    branches:
+      - "**"
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+      - "DIAGRAMS/**"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dotnet-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test-components:
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Configuration
+            solution: Configuration/ConfigurationComponent.sln
+          - name: CynetAuth
+            solution: CynetAuth/CynetAuth.sln
+          - name: Authorization
+            solution: Authorization/ElectionAuthorization.sln
+          - name: Voter
+            solution: Voter/VoterComponent/VoterComponent.sln
+          - name: ElectionProcessing
+            solution: ElectionProcessing/ElectionProcessing/ElectionProcessing.sln
+          - name: Transparency
+            solution: Transparency/TransparencyAudit.sln
+          - name: Result
+            solution: Result/ResultPortal.sln
+          - name: Watcher
+            solution: Watcher/WatcherAudit.sln
+          - name: Decryption
+            solution: Decryption/ThresholdDecryption.sln
+
+    name: ${{ matrix.name }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "9.0.x"
+
+      - name: Restore dependencies
+        run: dotnet restore ${{ matrix.solution }}
+
+      - name: Run tests
+        run: dotnet test ${{ matrix.solution }} --configuration Release --no-restore --verbosity normal

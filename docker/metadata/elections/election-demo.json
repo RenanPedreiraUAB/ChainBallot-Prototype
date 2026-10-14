@@ -1,0 +1,37 @@
+{
+  "election": {
+    "id": "election-demo",
+    "name": "Demo Election",
+    "description": "Local Docker demo election",
+    "version": "1.0"
+  },
+  "voting": {
+    "openingTimestamp": 1760000000,
+    "closingTimestamp": 1760086400
+  },
+  "blockchain": {
+    "network": "localnet",
+    "programId": "chainballot-program-v2",
+    "electionPda": "demo-pda"
+  },
+  "candidates": [
+    {
+      "id": 1,
+      "name": "Candidate A",
+      "party": "Independent",
+      "description": "Demo candidate A",
+      "image": ""
+    },
+    {
+      "id": 2,
+      "name": "Candidate B",
+      "party": "Independent",
+      "description": "Demo candidate B",
+      "image": ""
+    }
+  ],
+  "verification": {
+    "metadataHash": "demo-metadata-hash",
+    "creationTimestamp": 1760000000
+  }
+}

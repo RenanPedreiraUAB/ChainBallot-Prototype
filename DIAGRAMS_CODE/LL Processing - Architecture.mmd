@@ -1,0 +1,47 @@
+---
+config:
+  layout: elk
+title: 
+---
+flowchart TD
+    classDef svc fill:#BC80BD,stroke:#777777,color:#222222
+    classDef db fill:#E4F4E4,stroke:#777777,color:#222222
+
+    subgraph COMP["Election Processing Component"]
+        CTRL["Processing API Controller"]
+        INGRESS["Queue Ingress Adapter"]
+        OPS["Ops Control Endpoints<br/><i>(status/state/pause/resume/retry)</i>"]
+        CONSUMER["Queue Consumer"]
+        VALID["Ballot Validation Service"]
+        DEDUP["Duplicate / Nullifier Guard"]
+        BATCH["Batch Builder"]
+        MERKLE["Merkle Service"]
+        PROOF["Proof Strategy"]
+        LEDGER["Ledger Client"]
+        PUBLISH["Projection Publisher"]
+        AUDIT["Audit Writer"]
+        STATE[("Runtime State Store")]
+    end
+
+    CTRL --> OPS
+    CTRL --> INGRESS
+    INGRESS --> STATE
+    INGRESS --> CONSUMER
+    CONSUMER --> VALID
+    VALID --> DEDUP
+    DEDUP --> STATE
+    VALID --> BATCH
+    BATCH --> MERKLE
+    MERKLE --> PROOF
+    PROOF --> LEDGER
+    LEDGER --> PUBLISH
+    PUBLISH --> AUDIT
+    CTRL --> STATE
+
+    linkStyle default stroke:#7A4A7B,stroke-width:2.5px
+
+    class CTRL,INGRESS,OPS,CONSUMER,VALID,DEDUP,BATCH,MERKLE,PROOF,LEDGER,PUBLISH,AUDIT svc
+    class STATE db
+
+    class CTRL,INGRESS,OPS,CONSUMER,VALID,DEDUP,BATCH,MERKLE,PROOF,LEDGER,PUBLISH,AUDIT svc
+    class STATE db

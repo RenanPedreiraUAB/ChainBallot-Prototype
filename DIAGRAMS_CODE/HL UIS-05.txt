@@ -1,0 +1,60 @@
+title UIS-05 — Election Auditing
+
+
+actor "Auditor / Election Authority" as AUDITOR #lightblue
+
+participant "Watcher Component" as WATCHER #lightblue
+participant "Transparency / Audit API" as TRANSP #lightblue
+participant "Authoritative Digest Source" as DIGEST #lightblue
+
+activate AUDITOR #lightblue
+activate WATCHER #lightblue
+
+AUDITOR -> WATCHER : Request election audit
+
+WATCHER -> TRANSP : Request verified snapshot
+activate TRANSP #lightblue
+TRANSP --> WATCHER : Return verified snapshot
+
+WATCHER -> TRANSP : Request projection status
+TRANSP --> WATCHER : Return projection status
+
+WATCHER -> TRANSP : Request canonical settlement state
+TRANSP --> WATCHER : Return canonical settlement state
+deactivateafter TRANSP
+
+WATCHER -> DIGEST : Request authoritative metadata/audit digests
+
+activate DIGEST #lightblue
+DIGEST --> WATCHER : Return authoritative digest pair
+deactivateafter DIGEST
+
+WATCHER -> WATCHER : Validate election lifecycle consistency
+activate WATCHER #lightblue
+deactivateafter WATCHER
+
+WATCHER -> WATCHER : Validate settlement integrity
+activate WATCHER #lightblue
+deactivateafter WATCHER
+
+WATCHER -> WATCHER : Validate metadata/audit digest consistency
+activate WATCHER #lightblue
+deactivateafter WATCHER
+
+WATCHER -> WATCHER : Correlate checks into structured report\nand sign report digest
+activate WATCHER #lightblue
+deactivateafter WATCHER
+
+alt Audit inconsistencies detected
+
+WATCHER --> AUDITOR : Return report (status: Inconsistent)\nwith failing check details
+
+else Audit validation successful
+
+WATCHER --> AUDITOR : Return report (status: Consistent)
+WATCHER --> AUDITOR : Provide signed evidence export
+
+end
+
+deactivateafter WATCHER
+deactivateafter AUDITOR

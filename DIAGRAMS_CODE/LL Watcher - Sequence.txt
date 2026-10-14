@@ -1,0 +1,59 @@
+title Internal Sequence: Watcher Component
+
+participantgroup Watcher Component (Internal)
+participant "Watcher API Controller" as CTRL #lightblue
+participant "Audit Runner" as RUNNER #lightblue
+participant "Consistency Check Service" as CHECK #lightblue
+participant "Signature Service" as SIGN #lightblue
+participant "Report Store" as STORE #lightblue
+end
+
+participantgroup External Participants
+participant "Transparency API Adapter" as TRANSP #lightblue
+participant "Authoritative Digest Source Adapter" as DIGEST #lightblue
+end
+
+[->CTRL : run audit
+activate CTRL #lightblue
+CTRL -> RUNNER : start audit run
+activate RUNNER #lightblue
+RUNNER -> CHECK : compare sources
+activate CHECK #lightblue
+CHECK -> TRANSP : read verified snapshot
+activate TRANSP #lightblue
+TRANSP --> CHECK : snapshot
+deactivateafter TRANSP
+CHECK -> TRANSP : read projection status
+activate TRANSP #lightblue
+TRANSP --> CHECK : projection status
+deactivateafter TRANSP
+CHECK -> TRANSP : read canonical settlement state
+activate TRANSP #lightblue
+TRANSP --> CHECK : canonical state
+deactivateafter TRANSP
+CHECK -> DIGEST : read authoritative metadata/audit digests
+activate DIGEST #lightblue
+DIGEST --> CHECK : digest pair
+deactivateafter DIGEST
+CHECK --> RUNNER : audit findings (or upstream read/check error)
+deactivateafter CHECK
+RUNNER -> SIGN : sign report
+activate SIGN #lightblue
+SIGN --> RUNNER : signed report
+deactivateafter SIGN
+RUNNER -> STORE : persist report
+activate STORE #lightblue
+STORE --> RUNNER : report persisted
+deactivateafter STORE
+alt an upstream read or check threw an exception
+  RUNNER --> CTRL : audit complete (status: Error)
+else all checks completed
+  alt consistency checks failed
+    RUNNER --> CTRL : audit complete (status: Inconsistent)
+  else consistency checks passed
+    RUNNER --> CTRL : audit complete (status: Consistent)
+  end
+end
+deactivateafter RUNNER
+[<--CTRL : return report
+deactivateafter CTRL

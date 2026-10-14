@@ -1,0 +1,99 @@
+title Internal Sequence: Voter Component (2/3) — Durable Staging, Publication &amp; Automatic Recovery
+
+participantgroup Voter Component (Internal)
+participant "Voter Interaction Interface" as UI #lightblue
+participant "Submission Outbox" as OUTBOX #lightblue
+end
+
+participantgroup External Participants
+participant "Election Authorization Client" as AUTHZ #lightblue
+participant "Queue Publisher" as QUEUE #lightblue
+end
+
+note over UI,QUEUE: Continues from Part 1 with a prepared, encrypted submission package.
+activate UI #lightblue
+UI -> OUTBOX : durably stage package (before authorization is consumed)
+activate OUTBOX #lightblue
+OUTBOX --> UI : staged
+deactivateafter OUTBOX
+alt durable staging fails
+  [<--UI : submission rejected (not authorized; retry staging)
+else durable staging succeeds
+  UI -> AUTHZ : consume grant (grantId + submissionNonce)
+  activate AUTHZ #lightblue
+  AUTHZ --> UI : consume outcome
+  deactivateafter AUTHZ
+  alt consume succeeds
+    UI -> OUTBOX : mark staged entry authorized (pending publish)
+    activate OUTBOX #lightblue
+    OUTBOX --> UI : authorized
+    deactivateafter OUTBOX
+    UI -> QUEUE : publish ballot package
+    activate QUEUE #lightblue
+    QUEUE --> UI : publish outcome
+    deactivateafter QUEUE
+    alt publish succeeds
+      UI -> OUTBOX : remove confirmed entry
+      activate OUTBOX #lightblue
+      OUTBOX --> UI : removed
+      deactivateafter OUTBOX
+      UI -> UI : display submission receipt (not persisted)
+      activate UI #lightblue
+      deactivateafter UI
+      [<--UI : ballot submitted
+    else publish fails
+      [<--UI : submission queued for retry (already staged and authorized)
+    end
+  else consume fails
+    UI -> OUTBOX : remove staged entry (never authorized; must never be published)
+    activate OUTBOX #lightblue
+    OUTBOX --> UI : removed
+    deactivateafter OUTBOX
+    [<--UI : submission rejected
+  end
+end
+deactivateafter UI
+
+[->UI : load dashboard (auto-retries all pending outbox entries)
+activate UI #lightblue
+loop until outbox empty or a retry failure occurs
+  UI -> OUTBOX : take next pending entry
+  activate OUTBOX #lightblue
+  OUTBOX --> UI : pending entry (Staged or AuthorizedPendingPublish) or none
+  deactivateafter OUTBOX
+  alt entry found and status is Staged
+    UI -> AUTHZ : consume grant using entry's stored grantId
+    activate AUTHZ #lightblue
+    AUTHZ --> UI : consume outcome
+    deactivateafter AUTHZ
+    alt consume succeeds
+      UI -> UI : treat entry as authorized, continue to publish below
+    else consume fails
+      UI -> UI : drop entry (never authorized; never published)
+    end
+  end
+  alt entry authorized (already was, or just became so)
+    UI -> QUEUE : publish pending package
+    activate QUEUE #lightblue
+    QUEUE --> UI : retry publish outcome
+    deactivateafter QUEUE
+    alt retry publish succeeds
+      UI -> OUTBOX : remove confirmed entry
+      activate OUTBOX #lightblue
+      OUTBOX --> UI : removed
+      deactivateafter OUTBOX
+      UI -> UI : display submission receipt (not persisted)
+      activate UI #lightblue
+      deactivateafter UI
+    else retry publish fails
+      UI -> OUTBOX : requeue pending package
+      activate OUTBOX #lightblue
+      OUTBOX --> UI : retry queued
+      deactivateafter OUTBOX
+    end
+  else no pending entry
+    [<--UI : no further pending submissions
+  end
+end
+[<--UI : dashboard ready
+deactivateafter UI

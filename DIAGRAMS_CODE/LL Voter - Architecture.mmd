@@ -1,0 +1,37 @@
+---
+config:
+  layout: elk
+title: 
+---
+flowchart TD
+    classDef svc fill:#80B1D3,stroke:#777777,color:#222222
+    classDef db fill:#E4F4E4,stroke:#777777,color:#222222
+
+    subgraph COMP["Voter Component"]
+        UI["Voter Interaction Interface"]
+        AUTH["Auth Provider Client"]
+        AUTHZ["Election Authorization Client"]
+        META["Metadata Client"]
+        PREP["Ballot Preparation Service"]
+        CRYPTO["Encryption Service"]
+        QUEUE["Queue Publisher"]
+        SESSION[("Session / Auth State")]
+        OUTBOX[("Submission Outbox")]
+        RECEIPT[("Submission Receipt Store")]
+    end
+
+    UI --> SESSION
+    UI --> AUTH
+    UI --> AUTHZ
+    UI --> META
+    UI --> PREP
+    PREP --> CRYPTO
+    PREP --> OUTBOX
+    OUTBOX --> QUEUE
+    QUEUE --> RECEIPT
+    AUTHZ --> SESSION
+
+    linkStyle default stroke:#2E5F8A,stroke-width:2.5px
+
+    class UI,AUTH,AUTHZ,META,PREP,CRYPTO,QUEUE svc
+    class SESSION,OUTBOX,RECEIPT db

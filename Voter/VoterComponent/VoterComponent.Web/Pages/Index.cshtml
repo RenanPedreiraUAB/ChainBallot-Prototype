@@ -1,0 +1,14 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Voter Entry";
+}
+
+<div class="entry-splash">
+    <div class="entry-card">
+        <div class="eyebrow">Inbound / Voter Component</div>
+        <h1>Secure ballot entry workspace</h1>
+        <p>This component authenticates against CynetAuth, resolves election authorization state, and prepares encrypted ballot submissions for the queue boundary.</p>
+        <a class="btn btn-primary btn-lg" asp-page="/Login">Authenticate</a>
+    </div>
+</div>

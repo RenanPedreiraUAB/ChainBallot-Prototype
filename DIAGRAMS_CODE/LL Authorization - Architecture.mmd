@@ -1,0 +1,33 @@
+---
+config:
+  layout: elk
+title:
+---
+flowchart TD
+    classDef svc fill:#FB8072,stroke:#777777,color:#222222
+    classDef db fill:#E4F4E4,stroke:#777777,color:#222222
+
+    subgraph COMP["Election Authorization Component"]
+        CTRL["Authorization Controller"]
+        VID["VID Service"]
+        GRANT["Grant Service"]
+        ELIG["Eligibility Service"]
+        ASSERT["Signed Assertion<br/>Validation Adapter"]
+        AUDIT["Audit Event Writer"]
+        VIDREPO[("VID Repository")]
+        AUTHREPO[("Authorization Repository")]
+    end
+
+    CTRL --> ASSERT
+    CTRL --> VID
+    CTRL --> GRANT
+    CTRL --> ELIG
+    VID --> VIDREPO
+    GRANT --> AUTHREPO
+    ELIG --> AUTHREPO
+    CTRL --> AUDIT
+
+    linkStyle default stroke:#B33A2E,stroke-width:2.5px
+
+    class CTRL,VID,GRANT,ELIG,ASSERT,AUDIT svc
+    class VIDREPO,AUTHREPO db

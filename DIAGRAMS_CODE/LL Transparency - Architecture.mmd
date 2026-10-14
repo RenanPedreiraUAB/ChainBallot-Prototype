@@ -1,0 +1,41 @@
+---
+config:
+  layout: elk
+---
+flowchart TD
+    classDef svc fill:#8DD3C7,stroke:#777777,color:#222222
+    classDef db fill:#E4F4E4,stroke:#777777,color:#222222
+
+    subgraph COMP["Transparency &amp; Audit Component"]
+        CTRL["Transparency API Controller"]
+        SNAP["Snapshot Service"]
+        VID["VID Verification Service"]
+        LEDGER["Canonical Ledger Read Adapter"]
+        DIGEST["Authoritative Digest<br/>Source Adapter"]
+        RECON["Reconciliation Worker"]
+        RECONSRV["Reconciliation Service"]
+        RESYNC["Canonical Resync Event Source"]
+        INGEST["Evidence Ingest Service"]
+        STALE["Stale-State Tracker"]
+        REPO[("Projection Repository")]
+    end
+
+    CTRL --> SNAP
+    CTRL --> VID
+    CTRL --> REPO
+    CTRL --> LEDGER
+    CTRL --> RECON
+    CTRL --> INGEST
+    CTRL --> RECONSRV
+    CTRL --> RESYNC
+    RECON --> REPO
+    RECON --> LEDGER
+    RECON --> DIGEST
+    RECON --> STALE
+    INGEST --> REPO
+    INGEST --> DIGEST
+
+    linkStyle default stroke:#2E8A78,stroke-width:2.5px
+
+    class CTRL,SNAP,VID,LEDGER,DIGEST,RECON,RECONSRV,RESYNC,INGEST,STALE svc
+    class REPO db

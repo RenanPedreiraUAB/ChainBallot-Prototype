@@ -1,0 +1,25 @@
+---
+config:
+  layout: elk
+---
+flowchart TD
+    classDef svc fill:#BEBADA,stroke:#777777,color:#222222
+    classDef db fill:#E4F4E4,stroke:#777777,color:#222222
+
+    subgraph COMP["TTP Auth Service"]
+        CTRL["Authentication Controller"]
+        VERIFY["Credential Verification Service"]
+        ISSUER["Token Issuer"]
+        OPS["Health / Ops Endpoint"]
+        STORE[("Subject Store")]
+    end
+
+    CTRL --> VERIFY
+    CTRL --> ISSUER
+    CTRL --> STORE
+    CTRL --> OPS
+
+    linkStyle default stroke:#6B5B95,stroke-width:2.5px
+
+    class CTRL,VERIFY,ISSUER,OPS svc
+    class STORE db

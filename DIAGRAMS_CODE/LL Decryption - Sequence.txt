@@ -1,0 +1,96 @@
+title Internal Sequence: Threshold Decryption Component
+
+participantgroup Threshold Decryption Component (Internal)
+participant "Decryption API Controller" as CTRL #lightblue
+participant "Ceremony Service" as CEREMONY #lightblue
+participant "Approval Store" as APPROVAL #lightblue
+participant "Trustee Share Store" as SHARE #lightblue
+participant "Finalize Service" as FINAL #lightblue
+participant "Publication Service" as PUB #lightblue
+end
+
+participantgroup External Participants
+participant "Transparency / Audit API" as TRANSP #lightblue
+end
+
+[->CTRL : propose ceremony (authenticated: operator access key)
+activate CTRL #lightblue
+CTRL -> TRANSP : read canonical election state
+activate TRANSP #lightblue
+TRANSP --> CTRL : canonical state (IsFinalized)
+deactivateafter TRANSP
+alt canonical state not confirmed Closed/Finalized, or endpoint unavailable/malformed
+  CTRL -> CEREMONY : record closure-check-rejected event
+  activate CEREMONY #lightblue
+  CEREMONY --> CTRL : ceremony (Failed)
+  deactivateafter CEREMONY
+  [<--CTRL : ceremony proposal rejected
+else canonical state confirmed Closed/Finalized
+  CTRL -> CEREMONY : create ceremony state
+  activate CEREMONY #lightblue
+  CEREMONY --> CTRL : proposed
+  deactivateafter CEREMONY
+  [<--CTRL : ceremony proposed
+end
+deactivateafter CTRL
+
+[->CTRL : approve ceremony
+activate CTRL #lightblue
+CTRL -> APPROVAL : record approval
+activate APPROVAL #lightblue
+APPROVAL --> CTRL : approval count
+deactivateafter APPROVAL
+[<--CTRL : updated state
+deactivateafter CTRL
+
+[->CTRL : submit trustee share
+activate CTRL #lightblue
+CTRL -> SHARE : record share
+activate SHARE #lightblue
+SHARE --> CTRL : share count
+deactivateafter SHARE
+[<--CTRL : updated state
+deactivateafter CTRL
+
+[->CTRL : finalize tallies
+activate CTRL #lightblue
+alt thresholds not yet satisfied
+	[<--CTRL : finalize rejected (pending approvals/shares)
+else thresholds satisfied
+	CTRL -> TRANSP : read canonical election state
+	activate TRANSP #lightblue
+	TRANSP --> CTRL : canonical state (IsFinalized)
+	deactivateafter TRANSP
+	alt canonical state not confirmed Closed/Finalized, or endpoint unavailable/malformed
+		CTRL -> CEREMONY : record closure-check-rejected event
+		activate CEREMONY #lightblue
+		CEREMONY --> CTRL : ceremony unchanged
+		deactivateafter CEREMONY
+		[<--CTRL : finalize rejected (canonical closure not confirmed)
+	else canonical state confirmed Closed/Finalized
+		CTRL -> FINAL : finalize result digest
+		activate FINAL #lightblue
+		FINAL --> CTRL : finalized digest
+		deactivateafter FINAL
+		[<--CTRL : ceremony completed
+	end
+end
+deactivateafter CTRL
+
+[->CTRL : publish final tally
+activate CTRL #lightblue
+alt ceremony not completed, or already published
+	[<--CTRL : ceremony unchanged (no-op)
+else ceremony completed and unpublished
+	CTRL -> PUB : publish final tally reference
+	activate PUB #lightblue
+	PUB --> CTRL : publication reference
+	deactivateafter PUB
+	[<--CTRL : ceremony completed
+end
+deactivateafter CTRL
+
+[->CTRL : query ceremony status
+activate CTRL #lightblue
+[<--CTRL : current ceremony state
+deactivateafter CTRL

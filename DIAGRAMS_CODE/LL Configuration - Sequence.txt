@@ -1,0 +1,96 @@
+title Internal Sequence: Configuration Component
+
+participantgroup Configuration Component (Internal)
+participant "Administrative Interface" as UI #lightblue
+participant "Election Draft Coordination Service" as CTRL #lightblue
+participant "Validation Service" as VALID #lightblue
+participant "Metadata Builder" as META #lightblue
+participant "Deployment Manifest Service" as MANIFEST #lightblue
+participant "Scale Recommendation Service" as SCALE #lightblue
+participant "Draft Store" as DRAFT #lightblue
+end
+
+participantgroup External Participants
+participant "Ledger Init Client" as LEDGER #lightblue
+participant "Metadata Repository Client" as REPO #lightblue
+end
+
+[->UI : open draft
+activate UI #lightblue
+UI -> CTRL : load draft state
+activate CTRL #lightblue
+CTRL -> DRAFT : read draft
+activate DRAFT #lightblue
+DRAFT --> CTRL : draft values
+deactivateafter DRAFT
+CTRL --> UI : show draft
+deactivateafter CTRL
+[<--UI : draft displayed
+deactivateafter UI
+
+[->UI : save draft
+activate UI #lightblue
+UI -> CTRL : submit draft changes
+activate CTRL #lightblue
+CTRL -> VALID : validate for draft save
+activate VALID #lightblue
+VALID --> CTRL : validation outcome
+deactivateafter VALID
+alt validation failed
+  CTRL --> UI : display validation errors
+else validation succeeded
+  CTRL -> DRAFT : persist draft
+  activate DRAFT #lightblue
+  DRAFT --> CTRL : persisted
+  deactivateafter DRAFT
+  CTRL --> UI : draft saved
+end
+deactivateafter CTRL
+[<--UI : save result shown
+deactivateafter UI
+
+[->UI : view deployment sizing guidance
+activate UI #lightblue
+UI -> SCALE : derive deployment guidance
+activate SCALE #lightblue
+SCALE --> UI : sizing recommendation
+deactivateafter SCALE
+[<--UI : sizing guidance shown
+deactivateafter UI
+
+[->UI : deploy election
+activate UI #lightblue
+UI -> CTRL : submit deployment request
+activate CTRL #lightblue
+CTRL -> VALID : validate for deployment
+activate VALID #lightblue
+VALID --> CTRL : validation outcome
+deactivateafter VALID
+alt validation failed
+  CTRL --> UI : display validation errors
+else validation succeeded
+  CTRL -> META : build canonical metadata
+  activate META #lightblue
+  META --> CTRL : metadata + hash
+  deactivateafter META
+  CTRL -> REPO : publish finalized metadata
+  activate REPO #lightblue
+  REPO --> CTRL : published
+  deactivateafter REPO
+  CTRL -> LEDGER : initialize reusable election program
+  activate LEDGER #lightblue
+  LEDGER --> CTRL : contract reference
+  deactivateafter LEDGER
+  CTRL -> MANIFEST : build deployment manifest
+  activate MANIFEST #lightblue
+  MANIFEST --> CTRL : manifest
+  deactivateafter MANIFEST
+  CTRL -> DRAFT : persist manifest and updated election record
+  activate DRAFT #lightblue
+  DRAFT --> CTRL : persisted
+  deactivateafter DRAFT
+  CTRL --> UI : election deployed
+end
+deactivateafter CTRL
+[<--UI : deployment result shown
+deactivateafter UI

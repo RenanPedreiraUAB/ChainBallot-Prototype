@@ -1,0 +1,88 @@
+@page
+@model ResultPortal.Web.Pages.Verify.IndexModel
+@{
+    ViewData["Title"] = "VID Verification";
+}
+
+<h1>VID Verification</h1>
+<p class="text-muted">Verify whether a VID is reflected in the finalized election settlement evidence.</p>
+
+<form method="get" class="mb-4">
+    <label asp-for="ElectionId" class="form-label">Election ID</label>
+    <input asp-for="ElectionId" class="form-control" />
+
+    <label asp-for="Vid" class="form-label mt-3">VID</label>
+    <input asp-for="Vid" class="form-control" />
+
+    <button type="submit" class="btn btn-primary mt-3">Verify</button>
+</form>
+
+@if (!string.IsNullOrWhiteSpace(Model.InfoMessage))
+{
+    <div class="alert alert-info">@Model.InfoMessage</div>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.ErrorMessage))
+{
+    <div class="alert alert-warning">@Model.ErrorMessage</div>
+}
+
+@if (Model.Verification is not null)
+{
+    <section>
+        <h2>Verification Result</h2>
+        <dl>
+            <dt>Election ID</dt>
+            <dd>@Model.Verification.ElectionId</dd>
+            <dt>VID</dt>
+            <dd>@Model.Verification.Vid</dd>
+            <dt>Outcome</dt>
+            <dd>@Model.Verification.Outcome</dd>
+            <dt>Message</dt>
+            <dd>@Model.Verification.Message</dd>
+            <dt>Checked At (UTC)</dt>
+            <dd>@Model.Verification.CheckedAtUtc</dd>
+            <dt>Consistency Digest</dt>
+            <dd>@Model.Verification.ConsistencyDigest</dd>
+        </dl>
+
+        @if (Model.Verification.SettlementReference is not null)
+        {
+            <h3>Settlement Reference</h3>
+            <dl>
+                <dt>Network</dt>
+                <dd>@Model.Verification.SettlementReference.Network</dd>
+                <dt>Program ID</dt>
+                <dd>@Model.Verification.SettlementReference.ProgramId</dd>
+                <dt>Transaction Signature</dt>
+                <dd>@Model.Verification.SettlementReference.TransactionSignature</dd>
+                <dt>Slot</dt>
+                <dd>@Model.Verification.SettlementReference.Slot</dd>
+                <dt>Commitment</dt>
+                <dd>@Model.Verification.SettlementReference.Commitment</dd>
+            </dl>
+        }
+
+        @if (Model.Verification.InclusionProofReference is not null)
+        {
+            <h3>Inclusion Proof Reference</h3>
+            <dl>
+                <dt>Batch ID</dt>
+                <dd>@Model.Verification.InclusionProofReference.BatchId</dd>
+                <dt>Merkle Root</dt>
+                <dd>@Model.Verification.InclusionProofReference.MerkleRoot</dd>
+                <dt>Leaf Commitment</dt>
+                <dd>@Model.Verification.InclusionProofReference.LeafCommitment</dd>
+                <dt>Leaf Index</dt>
+                <dd>@Model.Verification.InclusionProofReference.LeafIndex</dd>
+                <dt>Proof URI</dt>
+                <dd>@Model.Verification.InclusionProofReference.ProofUri</dd>
+            </dl>
+        }
+    </section>
+}
+
+@if (!string.IsNullOrWhiteSpace(Model.CorrelationId))
+{
+    <p class="text-muted"><small>Correlation ID: @Model.CorrelationId</small></p>
+}

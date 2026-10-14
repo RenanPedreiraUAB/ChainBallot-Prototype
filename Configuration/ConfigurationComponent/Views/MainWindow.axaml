@@ -1,0 +1,202 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:ConfigurationComponent.ViewModels"
+    xmlns:dg="clr-namespace:Avalonia.Controls;assembly=Avalonia.Controls.DataGrid"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        x:Class="ConfigurationComponent.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Icon="/Assets/avalonia-logo.ico"
+    Title="Chain Ballot - Configuration Component"
+    Width="1280"
+    Height="860"
+    MinWidth="1050"
+    MinHeight="760">
+
+    <Design.DataContext>
+        <!-- This only sets the DataContext for the previewer in an IDE,
+             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+        <vm:MainWindowViewModel/>
+    </Design.DataContext>
+
+    <Grid RowDefinitions="Auto,Auto,*" Margin="16" RowSpacing="12">
+        <Border Grid.Row="0" Padding="12" Background="#1F2A44" CornerRadius="8">
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                <StackPanel>
+                    <TextBlock Text="Configuration Component" FontSize="22" FontWeight="SemiBold" Foreground="White"/>
+                    <TextBlock Text="Provision and deploy immutable election instances for Chain Ballot." Foreground="#D6E0F5"/>
+                </StackPanel>
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                    <StackPanel.Styles>
+                        <Style Selector="Button">
+                            <Setter Property="Background" Value="#F4F6FB"/>
+                            <Setter Property="Foreground" Value="#1F2A44"/>
+                            <Setter Property="BorderBrush" Value="#C7CEDB"/>
+                            <Setter Property="BorderThickness" Value="1"/>
+                        </Style>
+                        <Style Selector="Button:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="#E3E8F5"/>
+                            <Setter Property="TextBlock.Foreground" Value="#1F2A44"/>
+                        </Style>
+                        <Style Selector="Button:pressed /template/ ContentPresenter">
+                            <Setter Property="Background" Value="#C7CEDB"/>
+                            <Setter Property="TextBlock.Foreground" Value="#1F2A44"/>
+                        </Style>
+                        <Style Selector="Button:disabled /template/ ContentPresenter">
+                            <Setter Property="Opacity" Value="0.5"/>
+                        </Style>
+                    </StackPanel.Styles>
+                    <Button Content="Create Election" Command="{Binding CreateElectionCommand}"/>
+                    <Button Content="Open Election" Command="{Binding OpenElectionCommand}"/>
+                    <Button Content="Save Draft" Command="{Binding SaveDraftCommand}" IsEnabled="{Binding CanEditDraft}"/>
+                    <Button Content="Delete Draft" Command="{Binding DeleteDraftCommand}"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="1" Background="#FDECEC" CornerRadius="4" Padding="8">
+            <TextBlock Text="{Binding ValidationErrors}" Foreground="#C12C2C" FontWeight="SemiBold" TextWrapping="Wrap"/>
+        </Border>
+
+        <TabControl Grid.Row="2" SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}">
+            <TabItem Header="Dashboard">
+                <Grid Margin="10" RowDefinitions="Auto,*" RowSpacing="8">
+                    <TextBlock Text="Existing elections and current state" FontWeight="SemiBold"/>
+                    <dg:DataGrid Grid.Row="1"
+                              ItemsSource="{Binding Elections}"
+                              SelectedItem="{Binding SelectedElection, Mode=TwoWay}"
+                              IsReadOnly="True"
+                              AutoGenerateColumns="False">
+                        <dg:DataGrid.Columns>
+                            <dg:DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="2*"/>
+                            <dg:DataGridTextColumn Header="Lifecycle" Binding="{Binding LifecycleState}" Width="*"/>
+                            <dg:DataGridTextColumn Header="Deployment" Binding="{Binding DeploymentStatus}" Width="*"/>
+                            <dg:DataGridTextColumn Header="Open" Binding="{Binding OpeningDate}" Width="*"/>
+                            <dg:DataGridTextColumn Header="Close" Binding="{Binding ClosingDate}" Width="*"/>
+                        </dg:DataGrid.Columns>
+                    </dg:DataGrid>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="1. Election Details">
+                <ScrollViewer Margin="10">
+                      <Grid RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto,Auto"
+                          ColumnDefinitions="220,*"
+                          RowSpacing="8"
+                          ColumnSpacing="12"
+                          IsEnabled="{Binding CanEditDraft}">
+                        <TextBlock Text="Election Name" VerticalAlignment="Center"/>
+                        <TextBox Grid.Column="1" Text="{Binding ElectionName, Mode=TwoWay}"/>
+
+                        <TextBlock Grid.Row="1" Text="Description" VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ElectionDescription, Mode=TwoWay}" AcceptsReturn="True" MinHeight="80"/>
+
+                        <TextBlock Grid.Row="2" Text="Opening Date (UTC)" VerticalAlignment="Center"/>
+                        <DatePicker Grid.Row="2" Grid.Column="1" SelectedDate="{Binding OpeningDate, Mode=TwoWay}"/>
+
+                        <TextBlock Grid.Row="3" Text="Closing Date (UTC)" VerticalAlignment="Center"/>
+                        <DatePicker Grid.Row="3" Grid.Column="1" SelectedDate="{Binding ClosingDate, Mode=TwoWay}"/>
+
+                        <TextBlock Grid.Row="4" Text="Election Type" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Row="4" Grid.Column="1" ItemsSource="{Binding ElectionTypes}" SelectedItem="{Binding SelectedElectionType, Mode=TwoWay}"/>
+
+                        <TextBlock Grid.Row="5" Text="Network" VerticalAlignment="Center"/>
+                        <ComboBox Grid.Row="5" Grid.Column="1" ItemsSource="{Binding Networks}" SelectedItem="{Binding SelectedNetwork, Mode=TwoWay}"/>
+
+                        <TextBlock Grid.Row="6" Text="Program ID" VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="6" Grid.Column="1" Text="{Binding ProgramId, Mode=TwoWay}"/>
+
+                        <TextBlock Grid.Row="7" Text="Metadata Endpoint" VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="7" Grid.Column="1" Text="{Binding MetadataEndpoint, Mode=TwoWay}"/>
+
+                        <TextBlock Grid.Row="8" Text="Program Version" VerticalAlignment="Center"/>
+                        <TextBox Grid.Row="8" Grid.Column="1" Text="{Binding ProgramVersion, Mode=TwoWay}"/>
+
+                        <StackPanel Grid.Row="9" Grid.Column="1" Orientation="Horizontal" Spacing="8">
+                            <Button Content="Next: Add Candidates →" Command="{Binding GoToCandidateEditorCommand}"/>
+                        </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+
+            <TabItem Header="2. Candidates">
+                <Grid Margin="10" RowDefinitions="Auto,Auto,*" ColumnDefinitions="2*,*" ColumnSpacing="12" RowSpacing="8">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Candidate List" FontWeight="SemiBold"/>
+                        <dg:DataGrid ItemsSource="{Binding Candidates}"
+                                  SelectedItem="{Binding SelectedCandidate, Mode=TwoWay}"
+                                  IsReadOnly="True"
+                                  AutoGenerateColumns="False"
+                                  MinHeight="360">
+                            <dg:DataGrid.Columns>
+                                <dg:DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="70"/>
+                                <dg:DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="*"/>
+                                <dg:DataGridTextColumn Header="Party" Binding="{Binding Party}" Width="*"/>
+                                <dg:DataGridTextColumn Header="Order" Binding="{Binding DisplayOrder}" Width="80"/>
+                            </dg:DataGrid.Columns>
+                        </dg:DataGrid>
+                        <Button Content="Remove Selected Candidate"
+                                Command="{Binding RemoveCandidateCommand}"
+                                HorizontalAlignment="Left"
+                                IsEnabled="{Binding CanEditDraft}"/>
+                    </StackPanel>
+
+                    <Border Grid.Column="1"
+                            Padding="12"
+                            BorderThickness="1"
+                            BorderBrush="#C7CEDB"
+                            CornerRadius="8"
+                            IsEnabled="{Binding CanEditDraft}">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="Add Candidate" FontWeight="SemiBold" FontSize="16"/>
+                            <TextBox PlaceholderText="Name" Text="{Binding NewCandidateName, Mode=TwoWay}"/>
+                            <TextBox PlaceholderText="Party" Text="{Binding NewCandidateParty, Mode=TwoWay}"/>
+                            <TextBox PlaceholderText="Description" Text="{Binding NewCandidateDescription, Mode=TwoWay}" AcceptsReturn="True" MinHeight="80"/>
+                            <TextBox PlaceholderText="Image URL" Text="{Binding NewCandidateImage, Mode=TwoWay}"/>
+                            <Button Content="Add Candidate" Command="{Binding AddCandidateCommand}" HorizontalAlignment="Left"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </TabItem>
+
+            <TabItem Header="3. Deploy">
+                <ScrollViewer>
+                    <Grid Margin="10" RowDefinitions="Auto,Auto,Auto,Auto,Auto" ColumnDefinitions="260,*" RowSpacing="8" ColumnSpacing="12">
+                        <TextBlock Text="Expected Voters" VerticalAlignment="Center"/>
+                        <NumericUpDown Grid.Column="1" Minimum="1" Maximum="10000000" Value="{Binding ExpectedVoters, Mode=TwoWay}"/>
+
+                        <TextBlock Grid.Row="1" Text="Peak Participation (%)" VerticalAlignment="Center"/>
+                        <NumericUpDown Grid.Row="1" Grid.Column="1" Minimum="1" Maximum="100" Value="{Binding PeakParticipationPercent, Mode=TwoWay}"/>
+
+                        <TextBlock Grid.Row="2" Text="Election Duration (hours)" VerticalAlignment="Center"/>
+                        <NumericUpDown Grid.Row="2" Grid.Column="1" Minimum="1" Maximum="720" Value="{Binding ElectionDurationHours, Mode=TwoWay}"/>
+
+                        <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="8">
+                            <Button Content="Generate Metadata Preview" Command="{Binding GenerateMetadataPreviewCommand}"/>
+                            <Button Content="Generate Recommendation" Command="{Binding GenerateRecommendationCommand}"/>
+                            <Button Content="Deploy Election" Command="{Binding DeployCommand}" IsEnabled="{Binding CanEditDraft}"/>
+                        </StackPanel>
+
+                        <Grid Grid.Row="4" Grid.ColumnSpan="2" ColumnDefinitions="*,*" ColumnSpacing="12">
+                            <StackPanel>
+                                <TextBlock Text="Metadata Hash" FontWeight="SemiBold"/>
+                                <TextBox Text="{Binding MetadataHash}" IsReadOnly="True"/>
+                                <TextBlock Text="Recommendation" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding RecommendationSummary}" IsReadOnly="True" AcceptsReturn="True" MinHeight="120"/>
+                                <TextBlock Text="Deployment Result (contract reference)" FontWeight="SemiBold" Margin="0,8,0,0"/>
+                                <TextBox Text="{Binding DeploymentSummary}" IsReadOnly="True" AcceptsReturn="True" MinHeight="160"/>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1">
+                                <TextBlock Text="Metadata Preview" FontWeight="SemiBold"/>
+                                <TextBox Text="{Binding MetadataPreview}" IsReadOnly="True" AcceptsReturn="True" MinHeight="420"/>
+                            </StackPanel>
+                        </Grid>
+                    </Grid>
+                </ScrollViewer>
+            </TabItem>
+        </TabControl>
+    </Grid>
+
+</Window>

@@ -1,0 +1,74 @@
+title Internal Sequence: Transparency &amp; Audit Component (1/2) — Read &amp; Verification API
+
+participantgroup Transparency Component (Internal)
+participant "Transparency API Controller" as CTRL #lightblue
+participant "VID Verification Service" as VID #lightblue
+participant "Projection Repository" as REPO #lightblue
+end
+
+participantgroup External Participants
+participant "Canonical Ledger Read Adapter" as LEDGER #lightblue
+end
+
+[->CTRL : request verified snapshot
+activate CTRL #lightblue
+CTRL -> REPO : load projection
+activate REPO #lightblue
+REPO --> CTRL : projection state
+deactivateafter REPO
+alt projection stale
+  [<--CTRL : not found (stale projection never surfaced as verified)
+else projection fresh
+  alt projection lifecycle is Finalized
+    CTRL -> LEDGER : read canonical settlement state
+    activate LEDGER #lightblue
+    LEDGER --> CTRL : canonical state (or none configured)
+    deactivateafter LEDGER
+    alt canonical state present and contradicts Finalized projection
+      [<--CTRL : not found (canonical/projection mismatch)
+    else canonical state aligned, or no canonical source configured
+      [<--CTRL : snapshot data
+    end
+  else projection not yet Finalized
+    [<--CTRL : snapshot data (current, non-finalized state)
+  end
+end
+deactivateafter CTRL
+
+[->CTRL : request VID verification
+activate CTRL #lightblue
+CTRL -> REPO : load projection
+activate REPO #lightblue
+REPO --> CTRL : projection state
+deactivateafter REPO
+CTRL -> REPO : load VID entry
+activate REPO #lightblue
+REPO --> CTRL : VID entry
+deactivateafter REPO
+CTRL -> VID : enforce finalized-lifecycle rule and resolve inclusion/settlement references
+activate VID #lightblue
+VID --> CTRL : verification result
+deactivateafter VID
+alt projection stale
+  [<--CTRL : Inconsistent (stale projection never returns Verified)
+else projection fresh
+  CTRL -> LEDGER : read canonical settlement state
+  activate LEDGER #lightblue
+  LEDGER --> CTRL : canonical state (or none configured)
+  deactivateafter LEDGER
+  alt canonical state present and not finalized
+    [<--CTRL : Inconsistent (canonical/projection mismatch)
+  else canonical state aligned, or no canonical source configured
+    [<--CTRL : verification data (Verified)
+  end
+end
+deactivateafter CTRL
+
+[->CTRL : request canonical settlement state
+activate CTRL #lightblue
+CTRL -> LEDGER : read canonical settlement state
+activate LEDGER #lightblue
+LEDGER --> CTRL : canonical state
+deactivateafter LEDGER
+[<--CTRL : canonical state returned
+deactivateafter CTRL

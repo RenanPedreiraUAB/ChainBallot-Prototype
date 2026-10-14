@@ -1,0 +1,15 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Result Portal";
+}
+
+<div class="text-center">
+    <h1 class="display-5">Chain Ballot Result Portal</h1>
+    <p class="lead">Read verified election snapshots and verify individual VIDs through the Transparency API.</p>
+
+    <div class="d-grid gap-2 d-sm-flex justify-content-sm-center mt-4">
+        <a class="btn btn-primary btn-lg px-4" asp-page="/Results/Index">View Results</a>
+        <a class="btn btn-outline-secondary btn-lg px-4" asp-page="/Verify/Index">Verify VID</a>
+    </div>
+</div>

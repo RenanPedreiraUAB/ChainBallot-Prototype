@@ -1,0 +1,25 @@
+---
+config:
+  layout: elk
+---
+flowchart TD
+    classDef svc fill:#B3DE69,stroke:#777777,color:#222222
+    classDef db fill:#E4F4E4,stroke:#777777,color:#222222
+
+    subgraph COMP["Result Portal"]
+        UI["Result Pages"]
+        POLICY["Visibility Policy Service"]
+        CLIENT["Verified Result Client"]
+        TRANSP["Transparency API Adapter"]
+        SESSION[("Session / Access State")]
+    end
+
+    UI --> POLICY
+    UI --> CLIENT
+    CLIENT --> TRANSP
+    UI --> SESSION
+
+    linkStyle default stroke:#6B8A2E,stroke-width:2.5px
+
+    class UI,POLICY,CLIENT,TRANSP svc
+    class SESSION db

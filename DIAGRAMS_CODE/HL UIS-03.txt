@@ -1,0 +1,50 @@
+title UIS-03 — Individual Vote Verification
+
+
+actor "Voter" as VOTER #lightblue
+
+participant "Result Portal" as RESULT #lightblue
+participant "Transparency / Audit API" as TRANSP #lightblue
+
+activate VOTER #lightblue
+activate RESULT #lightblue
+
+VOTER -> RESULT : Submit VID for vote verification
+
+RESULT -> TRANSP : Request election-bound VID verification
+
+activate TRANSP #lightblue
+TRANSP -> TRANSP : Load election projection and VID entry
+activate TRANSP #lightblue
+deactivateafter TRANSP
+
+TRANSP -> TRANSP : Enforce finalized lifecycle rule
+activate TRANSP #lightblue
+deactivateafter TRANSP
+
+TRANSP -> TRANSP : Resolve settlement/inclusion references\nand compute consistency digest
+activate TRANSP #lightblue
+deactivateafter TRANSP
+
+TRANSP -> TRANSP : Check projection freshness and cross-check\ncanonical settlement state before confirming evidence
+activate TRANSP #lightblue
+deactivateafter TRANSP
+
+TRANSP --> RESULT : Return verification outcome and evidence references
+deactivateafter TRANSP
+
+alt NotFound, ElectionNotFinalized, or Inconsistent (stale/canonical mismatch)
+
+RESULT --> VOTER : Display verification failure
+
+else Ballot verified
+
+RESULT --> VOTER : Display ballot inclusion confirmation
+RESULT --> VOTER : Display batch identifier and Merkle inclusion proof reference
+RESULT --> VOTER : Display canonical settlement reference
+RESULT --> VOTER : Display consistency digest
+
+end
+
+deactivateafter RESULT
+deactivateafter VOTER

@@ -1,0 +1,32 @@
+apiVersion: keda.sh/v1alpha1
+kind: TriggerAuthentication
+metadata:
+  name: outbound-kafka-auth
+  namespace: chainballot
+spec:
+  podIdentity:
+    provider: none
+---
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: outbound-kafka-lag
+  namespace: chainballot
+spec:
+  scaleTargetRef:
+    name: outbound
+  minReplicaCount: 1
+  maxReplicaCount: 20
+  pollingInterval: 5
+  cooldownPeriod: 60
+  triggers:
+  - type: kafka
+    metadata:
+      bootstrapServers: redpanda.chainballot.svc.cluster.local:9092
+      consumerGroup: chainballot-outbound
+      topic: chainballot-ballots
+      lagThreshold: "100"
+      offsetResetPolicy: latest
+      allowIdleConsumers: "false"
+    authenticationRef:
+      name: outbound-kafka-auth

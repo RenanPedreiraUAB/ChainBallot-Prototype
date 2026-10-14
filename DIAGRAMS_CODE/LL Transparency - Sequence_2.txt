@@ -1,0 +1,105 @@
+title Internal Sequence: Transparency &amp; Audit Component (2/2) — Ingestion, Reindexing &amp; Reconciliation
+
+participantgroup Transparency Component (Internal)
+participant "Transparency API Controller" as CTRL #lightblue
+participant "Projection Repository" as REPO #lightblue
+participant "Reconciliation Worker" as RECON #lightblue
+participant "Reconciliation Service" as RECONSRV #lightblue
+end
+
+participantgroup External Participants
+participant "Authoritative Digest Source Adapter" as DIGEST #lightblue
+end
+
+[->CTRL : ingest projection evidence (authenticated + authorized: transparency.ingestion role)
+activate CTRL #lightblue
+CTRL -> DIGEST : correlate metadata digest
+activate DIGEST #lightblue
+DIGEST --> CTRL : metadata digest outcome
+deactivateafter DIGEST
+CTRL -> DIGEST : correlate audit digest
+activate DIGEST #lightblue
+DIGEST --> CTRL : audit digest outcome
+deactivateafter DIGEST
+CTRL -> REPO : upsert projection state (stamped with correlation outcome)
+activate REPO #lightblue
+REPO --> CTRL : projection updated
+deactivateafter REPO
+[<--CTRL : projection status
+deactivateafter CTRL
+
+[->RECON : scheduled auto-reindex tick (configured elections)
+activate RECON #lightblue
+RECON -> DIGEST : correlate metadata/audit digests
+activate DIGEST #lightblue
+DIGEST --> RECON : digest comparison outcome
+deactivateafter DIGEST
+RECON -> REPO : upsert and reindex projection
+activate REPO #lightblue
+REPO --> RECON : reindexed
+deactivateafter REPO
+alt drift or mismatch detected
+  RECON -> REPO : mark projection stale
+  activate REPO #lightblue
+  REPO --> RECON : stale mark persisted
+  deactivateafter REPO
+else projection aligned
+  RECON -> RECON : no action needed
+end
+deactivateafter RECON
+
+[->RECON : process queued resync event
+activate RECON #lightblue
+RECON -> REPO : reindex projection
+activate REPO #lightblue
+REPO --> RECON : reindexed
+deactivateafter REPO
+deactivateafter RECON
+
+[->CTRL : request manual mark-stale (authenticated + authorized: transparency.ingestion role)
+activate CTRL #lightblue
+CTRL -> REPO : mark projection stale
+activate REPO #lightblue
+REPO --> CTRL : stale mark persisted
+deactivateafter REPO
+[<--CTRL : operation acknowledged
+deactivateafter CTRL
+
+[->CTRL : request manual reindex (authenticated + authorized: transparency.ingestion role)
+activate CTRL #lightblue
+CTRL -> DIGEST : correlate metadata/audit digests
+activate DIGEST #lightblue
+DIGEST --> CTRL : digest comparison outcome
+deactivateafter DIGEST
+CTRL -> REPO : upsert and reindex projection
+activate REPO #lightblue
+REPO --> CTRL : reindexed
+deactivateafter REPO
+[<--CTRL : operation acknowledged
+deactivateafter CTRL
+
+[->CTRL : request manual resync (authenticated + authorized: transparency.ingestion role)
+activate CTRL #lightblue
+CTRL -> RECON : enqueue resync event
+activate RECON #lightblue
+RECON --> CTRL : event queued
+deactivateafter RECON
+[<--CTRL : resync queued (processed asynchronously)
+deactivateafter CTRL
+
+[->CTRL : open dispute / override / resolve reconciliation case (authenticated + authorized: transparency.reconciliation role)
+activate CTRL #lightblue
+CTRL -> REPO : load current projection digest
+activate REPO #lightblue
+REPO --> CTRL : current digest
+deactivateafter REPO
+CTRL -> RECONSRV : append immutable case event
+activate RECONSRV #lightblue
+RECONSRV -> REPO : mark projection stale (if applicable)
+activate REPO #lightblue
+REPO --> RECONSRV : stale mark persisted
+deactivateafter REPO
+RECONSRV --> CTRL : updated reconciliation case
+deactivateafter RECONSRV
+[<--CTRL : reconciliation response
+deactivateafter CTRL

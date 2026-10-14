@@ -1,0 +1,30 @@
+---
+config:
+  layout: elk
+title:
+---
+flowchart TD
+    classDef svc fill:#FDB462,stroke:#777777,color:#222222
+    classDef db fill:#E4F4E4,stroke:#777777,color:#222222
+
+    subgraph COMP["Threshold Decryption Component"]
+        CTRL["Decryption API Controller"]
+        CEREMONY["Ceremony Service"]
+        FINAL["Finalize Service"]
+        PUB["Publication Service"]
+        TRANSP["Transparency API Adapter"]
+        APPROVAL[("Approval Store")]
+        SHARE[("Trustee Share Store")]
+    end
+
+    CTRL --> CEREMONY
+    CEREMONY --> APPROVAL
+    CEREMONY --> SHARE
+    CEREMONY --> FINAL
+    FINAL --> PUB
+    PUB --> TRANSP
+
+    linkStyle default stroke:#B8722E,stroke-width:2.5px
+
+    class CTRL,CEREMONY,FINAL,PUB,TRANSP svc
+    class APPROVAL,SHARE db
